@@ -1,0 +1,4 @@
+Programming language: Python
+Framework: Django
+Deadline for frontend: 5th April
+Deadline for backend: 10th April
