@@ -1,0 +1,11 @@
+<!-- clinic/templates/clinic/home.html -->
+{% extends 'clinic/base.html' %}
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-4 text-primary">Welcome to HealthCare</h1>
+  <p class="lead">Your one-stop solution for patient management, EHR, appointment scheduling, and more.</p>
+  <hr class="my-4">
+  <p>Navigate using the menu above to access all functionalities.</p>
+  <a class="btn btn-primary btn-lg" href="{% url 'patient_list' %}" role="button">Manage Patients</a>
+</div>
+{% endblock %}
