@@ -1,0 +1,31 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+  <h1 class="mb-4">Patient Details (ID: {{ patient.patient_id }})</h1>
+
+  <ul class="list-group mb-4">
+    <li class="list-group-item"><strong>Name:</strong> {{ patient.patient_name }}</li>
+    <li class="list-group-item"><strong>Insurance Info:</strong> {{ patient.insurance_info }}</li>
+    <li class="list-group-item"><strong>Emergency Contact:</strong> {{ patient.emergency_contact }}</li>
+    <li class="list-group-item"><strong>EHR Link:</strong> {{ patient.ehr_link }}</li>
+    <li class="list-group-item"><strong>Feedback Rating:</strong> {{ patient.feedback_rating }}</li>
+    <li class="list-group-item"><strong>Registration Date:</strong> {{ patient.registration_date }}</li>
+  </ul>
+
+  <h2 class="mb-3">Contact Details</h2>
+  {% if contacts %}
+    <ul class="list-group mb-4">
+      {% for c in contacts %}
+        <li class="list-group-item">
+          <strong>Phone:</strong> {{ c.phone_number }}<br>
+          <strong>Email:</strong> {{ c.email }}<br>
+          <strong>Address:</strong> {{ c.address }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No contact records found.</p>
+  {% endif %}
+
+  <a class="btn btn-warning" href="{% url 'patient_update' patient.patient_id %}">Edit Patient</a>
+  <a class="btn btn-secondary" href="{% url 'patient_list' %}">Back to List</a>
+{% endblock %}

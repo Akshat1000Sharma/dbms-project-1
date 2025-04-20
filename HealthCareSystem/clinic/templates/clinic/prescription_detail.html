@@ -1,0 +1,36 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<h1 class="mb-4">Prescription #{{ prescription.prescription_id }}</h1>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Prescription Details</h5>
+        <dl class="row">
+            <dt class="col-sm-3">Patient</dt>
+            <dd class="col-sm-9">
+                {% with patient=get_record('Patient', 'patient_id', prescription.patient_id) %}
+                {{ patient.demographic_details }}
+                {% endwith %}
+            </dd>
+            
+            <dt class="col-sm-3">Prescribing Staff</dt>
+            <dd class="col-sm-9">
+                {% with staff=get_record('Staff_Details', 'staff_id', prescription.staff_id) %}
+                {{ staff.name }}
+                {% endwith %}
+            </dd>
+            
+            <dt class="col-sm-3">Diagnoses</dt>
+            <dd class="col-sm-9">{{ prescription.diagnoses|default:"Not specified" }}</dd>
+            
+            <dt class="col-sm-3">Dosage Instructions</dt>
+            <dd class="col-sm-9">{{ prescription.dosage_instruction }}</dd>
+        </dl>
+        
+        <div class="mt-4">
+            <a href="{% url 'prescription_update' prescription.prescription_id %}" class="btn btn-warning">Edit</a>
+            <a href="{% url 'prescription_list' %}" class="btn btn-secondary">Back to List</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

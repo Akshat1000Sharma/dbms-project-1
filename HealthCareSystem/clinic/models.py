@@ -2,7 +2,7 @@ from django.db import models
 
 class Patient(models.Model):
     patient_id = models.AutoField(primary_key=True)
-    demographic_details = models.CharField(max_length=255)
+    patient_name = models.CharField(max_length=255)
     insurance_info = models.CharField(max_length=255)
     emergency_contact = models.CharField(max_length=10)  # use CharField for fixed length
     ehr_link = models.CharField(max_length=255)
@@ -12,7 +12,9 @@ class Patient(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Patient {self.patient_id}: {self.demographic_details}"
+        return f"Patient {self.patient_id}: {self.patient_name}"
+    class Meta:
+        db_table = 'Patient'
 
 
 class PatientContact(models.Model):
@@ -24,16 +26,18 @@ class PatientContact(models.Model):
 
     def __str__(self):
         return f"Contact for Patient {self.patient.patient_id}"
-
+    class Meta:
+        db_table = 'Patient_Contact'
 
 class StaffDetails(models.Model):
     staff_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     occupation = models.CharField(max_length=255, blank=True, null=True)
     speciality = models.CharField(max_length=255, blank=True, null=True)
-
     def __str__(self):
         return self.name
+    class Meta:
+        db_table = 'Staff_Details'
 
 
 class StaffContact(models.Model):
@@ -42,9 +46,10 @@ class StaffContact(models.Model):
     phone_number = models.CharField(max_length=15)
     email = models.EmailField(max_length=255)
     address = models.TextField()
-
     def __str__(self):
         return f"Contact for Staff {self.staff.name}"
+    class Meta:
+        db_table = 'Staff_Contact'
 
 
 class PatientsAssigned(models.Model):
@@ -52,10 +57,10 @@ class PatientsAssigned(models.Model):
     staff = models.ForeignKey(StaffDetails, on_delete=models.CASCADE)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     assigned_date = models.DateField(auto_now_add=True)
-
     def __str__(self):
         return f"{self.staff.name} assigned to Patient {self.patient.patient_id}"
-
+    class Meta:
+        db_table = 'Patients_Assigned'
 
 class Insurance(models.Model):
     insurance_id = models.AutoField(primary_key=True)
@@ -63,9 +68,10 @@ class Insurance(models.Model):
     policy_number = models.CharField(max_length=255, unique=True)
     treatment_coverage_details = models.TextField()
     amount_covered = models.DecimalField(max_digits=15, decimal_places=2)
-
     def __str__(self):
         return self.provider_name
+    class Meta:
+        db_table = 'Insurance'
 
 
 class Billing(models.Model):
@@ -80,9 +86,10 @@ class Billing(models.Model):
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS, default='Pending')
     billing_date = models.DateField()
-
     def __str__(self):
         return f"Billing {self.billing_id} for Patient {self.patient.patient_id}"
+    class Meta:
+        db_table = 'Billing'
 
 
 class Prescription(models.Model):
@@ -100,9 +107,10 @@ class Prescription(models.Model):
     alert = models.TextField(default='No alert')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
     def __str__(self):
         return f"Prescription {self.prescription_id}"
+    class Meta:
+        db_table = 'Prescription'
 
 
 class Drug(models.Model):
@@ -119,9 +127,10 @@ class Drug(models.Model):
     warnings = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
     def __str__(self):
         return self.drug_name
+    class Meta:
+        db_table = 'Drug'
 
 
 class PrescriptionDrug(models.Model):
@@ -129,12 +138,11 @@ class PrescriptionDrug(models.Model):
     drug = models.ForeignKey(Drug, on_delete=models.CASCADE)
     quantity = models.IntegerField()
     instructions = models.TextField()
-
-    class Meta:
-        unique_together = ('prescription', 'drug')
-
     def __str__(self):
         return f"Prescription {self.prescription.prescription_id} - Drug {self.drug.drug_name}"
+    class Meta:
+        unique_together = ('prescription', 'drug')
+        db_table = 'Prescription_Drug'
 
 
 class DrugInteraction(models.Model):
@@ -143,12 +151,11 @@ class DrugInteraction(models.Model):
     interaction_details = models.CharField(max_length=500)
     severity_level = models.CharField(max_length=10, choices=(('Low','Low'),('Moderate','Moderate'),('High','High')))
     alert = models.TextField()
-
-    class Meta:
-        unique_together = ('drug_id_1', 'drug_id_2')
-
     def __str__(self):
         return f"Interaction between {self.drug_id_1.drug_name} and {self.drug_id_2.drug_name}"
+    class Meta:
+        unique_together = ('drug_id_1', 'drug_id_2')
+        db_table = 'Drug_Interaction'
 
 
 class Appointment(models.Model):
@@ -180,7 +187,8 @@ class Appointment(models.Model):
 
     def __str__(self):
         return f"Appointment {self.appointment_id} for Patient {self.patient.patient_id}"
-
+    class Meta:
+        db_table = 'Appointment'
 
 class Report(models.Model):
     report_id = models.AutoField(primary_key=True)
@@ -189,6 +197,7 @@ class Report(models.Model):
     insurance = models.ForeignKey(Insurance, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
     def __str__(self):
         return f"Report {self.report_id} for Patient {self.patient.patient_id}"
+    class Meta:
+        db_table = 'Report'

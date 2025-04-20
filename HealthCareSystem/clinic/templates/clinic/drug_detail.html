@@ -1,0 +1,31 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<h1 class="mb-4">{{ drug.drug_name }}</h1>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Drug Details</h5>
+        <dl class="row">
+            <dt class="col-sm-3">Type</dt>
+            <dd class="col-sm-9">{{ drug.drug_type }}</dd>
+            
+            <dt class="col-sm-3">Dosage Form</dt>
+            <dd class="col-sm-9">{{ drug.dosage_form }}</dd>
+            
+            <dt class="col-sm-3">Strength</dt>
+            <dd class="col-sm-9">{{ drug.strength }}</dd>
+            
+            <dt class="col-sm-3">Manufacturer</dt>
+            <dd class="col-sm-9">{{ drug.manufacturer }}</dd>
+            
+            <dt class="col-sm-3">Interactions</dt>
+            <dd class="col-sm-9">{{ drug.interactions|default:"None recorded" }}</dd>
+        </dl>
+        
+        <div class="mt-4">
+            <a href="{% url 'drug_update' drug.drug_id %}" class="btn btn-warning">Edit</a>
+            <a href="{% url 'drug_list' %}" class="btn btn-secondary">Back to List</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

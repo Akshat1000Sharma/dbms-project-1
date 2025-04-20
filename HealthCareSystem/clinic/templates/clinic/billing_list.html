@@ -1,0 +1,39 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<h1 class="mb-4">Billing Records</h1>
+<a href="{% url 'billing_create' %}" class="btn btn-success mb-3">New Bill</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Bill ID</th>
+            <th>Patient</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for bill in bills %}
+        <tr>
+            <td>{{ bill.billing_id }}</td>
+            <td>
+                {% with patient=get_record('Patient', 'patient_id', bill.patient_id) %}
+                {{ patient.demographic_details }}
+                {% endwith %}
+            </td>
+            <td>${{ bill.total_amount }}</td>
+            <td>{{ bill.payment_status }}</td>
+            <td>{{ bill.billing_date }}</td>
+            <td>
+                <a href="{% url 'billing_detail' bill.billing_id %}" class="btn btn-info btn-sm">View</a>
+                <a href="{% url 'billing_update' bill.billing_id %}" class="btn btn-warning btn-sm">Edit</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">No billing records found</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

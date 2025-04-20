@@ -3,25 +3,38 @@
 {% block content %}
 <h1 class="mb-4">Patient Management</h1>
 <a class="btn btn-success mb-3" href="{% url 'patient_create' %}">Register New Patient</a>
-<table class="table table-striped">
+<table class="table table-striped px-5">
   <thead>
     <tr>
       <th>ID</th>
-      <th>Demographics</th>
+      <th>NAME</th>
       <th>Registration Date</th>
-      <th>Actions</th>
+      <th>EMERGENCY CONTACT</th>
+      <th>ACTIONS AVAILABLE</th>
     </tr>
   </thead>
   <tbody>
     {% for patient in patients %}
     <tr>
       <td>{{ patient.patient_id }}</td>
-      <td>{{ patient.demographic_details }}</td>
+      <td>{{ patient.patient_name }}</td>
       <td>{{ patient.registration_date }}</td>
+      <td>{{ patient.emergency_contact }}</td>
       <td>
         <a class="btn btn-info btn-sm" href="{% url 'patient_detail' patient.patient_id %}">View</a>
         <a class="btn btn-warning btn-sm" href="{% url 'patient_update' patient.patient_id %}">Edit</a>
+        <a class="btn btn-primary btn-sm" href="{% url 'patient_contact_manage' patient.patient_id %}">
+            {% if patient.has_contacts %}Edit Contact{% else %}Add Contact{% endif %}
+        </a>
+        <form method="POST" action="{% url 'patient_delete' patient.patient_id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-sm" 
+                    onclick="return confirm('Delete patient permanently?');">
+                Delete
+            </button>
+        </form>
       </td>
+      
     </tr>
     {% endfor %}
   </tbody>

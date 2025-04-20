@@ -1,0 +1,25 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<h1 class="mb-4">{{ insurance.provider_name }}</h1>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Insurance Details</h5>
+        <dl class="row">
+            <dt class="col-sm-3">Policy Number</dt>
+            <dd class="col-sm-9">{{ insurance.policy_number }}</dd>
+            
+            <dt class="col-sm-3">Coverage Details</dt>
+            <dd class="col-sm-9">{{ insurance.treatment_coverage_details }}</dd>
+            
+            <dt class="col-sm-3">Amount Covered</dt>
+            <dd class="col-sm-9">${{ insurance.amount_covered }}</dd>
+        </dl>
+        
+        <div class="mt-4">
+            <a href="{% url 'insurance_update' insurance.insurance_id %}" class="btn btn-warning">Edit</a>
+            <a href="{% url 'insurance_list' %}" class="btn btn-secondary">Back to List</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
