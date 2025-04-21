@@ -42,6 +42,20 @@ urlpatterns = [
     path('staff/<int:pk>/delete/', views.provider_delete, name='provider_delete'),
     path('staff/<int:pk>/contacts/', views.provider_contact_manage, name='provider_contact_manage'),
     path('staff/<int:staff_id>/assign/', views.assign_doctor, name='assign_doctor'),
+
+    # Prescription CRUD
+    path('prescriptions/', views.prescription_list, name='prescription_list'),
+    path('prescriptions/new/', views.prescription_create, name='prescription_create'),
+    path('prescriptions/<int:pk>/', views.prescription_detail, name='prescription_detail'),
+    path('prescriptions/<int:pk>/edit/', views.prescription_update, name='prescription_update'),
+    path('prescriptions/<int:pk>/delete/', views.prescription_delete, name='prescription_delete'),
+    
+    # drug interaction check
+    path('prescriptions/<int:prescription_id>/drugs/', views.prescription_drugs, name='prescription_drugs'),
+    path('check_interactions/', views.check_interactions, name='check_interactions'),
+    path('drugs/interactions/new/', views.drug_interaction_create, name='drug_interaction_create'),
+    path('drugs/interactions/', views.drug_interaction_list, name='drug_interaction_list'),
+    path('drugs/interactions/<int:drug1_id>/<int:drug2_id>/', views.drug_interaction_edit, name='drug_interaction_edit'),
     
 
     # Insurance CRUD
@@ -57,20 +71,6 @@ urlpatterns = [
     path('billing/<int:pk>/', views.billing_detail, name='billing_detail'),
     path('billing/<int:pk>/edit/', views.billing_update, name='billing_update'),
     path('billing/<int:pk>/delete/', views.billing_delete, name='billing_delete'),
-
-    # Prescription CRUD
-    path('prescriptions/', views.prescription_list, name='prescription_list'),
-    path('prescriptions/new/', views.prescription_create, name='prescription_create'),
-    path('prescriptions/<int:pk>/', views.prescription_detail, name='prescription_detail'),
-    path('prescriptions/<int:pk>/edit/', views.prescription_update, name='prescription_update'),
-    path('prescriptions/<int:pk>/delete/', views.prescription_delete, name='prescription_delete'),
-    
-    # drug interaction check
-    path('prescriptions/<int:prescription_id>/drugs/', views.prescription_drugs, name='prescription_drugs'),
-    path('check_interactions/', views.check_interactions, name='check_interactions'),
-    path('drugs/interactions/new/', views.drug_interaction_create, name='drug_interaction_create'),
-    path('drugs/interactions/', views.drug_interaction_list, name='drug_interaction_list'),
-    path('drugs/interactions/<int:drug1_id>/<int:drug2_id>/', views.drug_interaction_edit, name='drug_interaction_edit'),
 
     # Reporting CRUD
     path('reporting/', views.report_list, name='report_list'),

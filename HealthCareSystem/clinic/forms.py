@@ -201,18 +201,10 @@ class DrugInteractionForm(forms.ModelForm):
             # Lock drug pair for existing interactions
             self.fields['drug_1'].disabled = True
             self.fields['drug_2'].disabled = True
-            
-            # Handle default interactions
-            if self.instance.is_default():
-                self.fields['interaction_details'].required = False
-                self.fields['interaction_details'].help_text = "Default interactions cannot be modified"
-
+           
     def clean(self):
         cleaned_data = super().clean()
         
-        # Preserve default interaction details
-        if self.instance and self.instance.is_default():
-            cleaned_data['interaction_details'] = 'No known interaction'
             
         # Ensure drugs are different
         drug_1 = cleaned_data.get('drug_1')

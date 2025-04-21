@@ -1,4 +1,3 @@
-# clinic/db_utils.py
 from django.db import connection
 
 # 1) Raw SQL trigger definitions for performing 3 tasks:
@@ -137,20 +136,29 @@ def update_record(table_name, fields, values, pk_name, pk_value):
 def check_interactions_for_drugs(drug_ids):
     if len(drug_ids) < 2:
         return []
+
+    # we’ll look for any stored interaction where both drugs appear, in either order
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT d1.drug_name, d2.drug_name, di.interaction_details, di.severity_level
+            SELECT 
+                d1.drug_name, 
+                d2.drug_name, 
+                di.interaction_details, 
+                di.severity_level
             FROM Drug_Interaction di
-            JOIN Drug d1 ON di.drug_id_1 = d1.drug_id
-            JOIN Drug d2 ON di.drug_id_2 = d2.drug_id
-            WHERE di.drug_id_1 IN %s AND di.drug_id_2 IN %s
-        """, [drug_ids, drug_ids])
+            JOIN Drug d1 ON di.drug_1_id = d1.drug_id
+            JOIN Drug d2 ON di.drug_2_id = d2.drug_id
+            WHERE 
+                (di.drug_1_id IN %s AND di.drug_2_id IN %s)
+             OR (di.drug_1_id IN %s AND di.drug_2_id IN %s)
+        """, [tuple(drug_ids), tuple(drug_ids), tuple(drug_ids), tuple(drug_ids)])
+
         interactions = []
-        for row in cursor.fetchall():
+        for drug1, drug2, details, severity in cursor.fetchall():
             interactions.append({
-                'drug1': row[0],
-                'drug2': row[1],
-                'details': row[2],
-                'severity': row[3],
+                'drug1':    drug1,
+                'drug2':    drug2,
+                'details':  details,
+                'severity': severity,
             })
         return interactions

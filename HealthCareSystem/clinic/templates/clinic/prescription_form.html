@@ -1,4 +1,5 @@
 {% extends 'clinic/base.html' %}
+{% load widget_tweaks %}
 {% block content %}
 <style>
     .prescription-box {
@@ -77,141 +78,125 @@
     {% endfor %}
 </div>
 {% endif %}
-<div class="prescription-box">
-    <div class="form-header">
-        <h2 class="mb-0">{% if form.instance.pk %}Edit Prescription{% else %}New Prescription{% endif %}</h2>
+<div class="prescription-box mx-auto my-5 p-4 bg-white rounded shadow" style="max-width: 900px;">
+    <div class="form-header mb-4">
+      <h2 class="text-center">
+        {% if is_update %}Edit Prescription{% else %}New Prescription{% endif %}
+      </h2>
     </div>
-    
-    <div class="form-body">
-        <form method="post" id="prescription-form">
-            {% csrf_token %}
-            
-            <div class="form-section">
-                <!-- Patient and Staff Selection -->
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="{{ form.patient.id_for_label }}">Patient</label>
-                            {{ form.patient }}
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="{{ form.staff.id_for_label }}">Staff</label>
-                            {{ form.staff }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Medical Information Section -->
-            <div class="form-section">
-                <h4 class="mb-4 border-bottom pb-2">Medical Information</h4>
-                <div class="row g-4">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="{{ form.diagnoses.id_for_label }}">Diagnoses</label>
-                            {{ form.diagnoses }}
-                        </div>
-                        <div class="form-group">
-                            <label for="{{ form.treatments.id_for_label }}">Treatments</label>
-                            {{ form.treatments }}
-                        </div>
-                        <div class="form-group">
-                            <label for="{{ form.allergies.id_for_label }}">Allergies</label>
-                            {{ form.allergies }}
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="{{ form.laboratory_test_results.id_for_label }}">Lab Results</label>
-                            {{ form.laboratory_test_results }}
-                        </div>
-                        <div class="form-group">
-                            <label for="{{ form.imaging_studies.id_for_label }}">Imaging Studies</label>
-                            {{ form.imaging_studies }}
-                        </div>
-                        <div class="form-group">
-                            <label for="{{ form.dosage_instruction.id_for_label }}">Dosage Instructions</label>
-                            {{ form.dosage_instruction }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Prescribed Drugs Section -->
-            <div class="form-section">
-                <h4 class="mb-4 border-bottom pb-2">Prescribed Drugs</h4>
-                <div id="drug-forms">
-                    {{ formset.management_form }}
-                    {% for form in formset %}
-                    <div class="drug-form-row">
-                        <div class="row g-3">
-                            <div class="col-md-5">
-                                <div class="form-group">
-                                    <label>Drug</label>
-                                    {{ form.drug }}
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label>Quantity</label>
-                                    {{ form.quantity }}
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label>Instructions</label>
-                                    {{ form.instructions }}
-                                </div>
-                            </div>
-                            <div class="col-md-1">
-                                {% if form.instance.pk %}
-                                <div class="form-group">
-                                    <label>Delete</label>
-                                    {{ form.DELETE }}
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                <button type="button" class="btn btn-outline-primary mt-2" onclick="addDrugForm()">
-                    + Add Another Drug
-                </button>
-            </div>
-
-            <!-- Fixed Button Group -->
-            <div class="button-group">
-                <div class="d-flex justify-content-end gap-3">
-                    <button type="submit" class="btn btn-lg btn-primary px-5">Save</button>
-                    <a href="{% url 'prescription_list' %}" class="btn btn-lg btn-outline-secondary px-5">Cancel</a>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Interaction Modal (keep previous implementation) -->
-
-<script>
-// JavaScript for dynamic form addition
-function addDrugForm() {
-    const totalForms = document.getElementById('id_drugs-TOTAL_FORMS');
-    const formNum = parseInt(totalForms.value);
-    const newForm = document.querySelector('.drug-form-row').cloneNode(true);
-    
-    // Update all relevant attributes/IDs
-    newForm.innerHTML = newForm.innerHTML.replace(/-\d+-/g, `-${formNum}-`);
-    newForm.querySelectorAll('input, select, textarea').forEach(input => {
-        input.value = '';
-        input.checked = false;
+  
+    <form method="post">
+      {% csrf_token %}
+  
+      <!-- Patient & Staff Row -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label for="id_patient" class="form-label">Patient</label>
+          {{ form.patient|add_class:"form-select" }}
+        </div>
+        <div class="col-md-6">
+          <label for="id_staff" class="form-label">Staff</label>
+          {{ form.staff|add_class:"form-select" }}
+        </div>
+      </div>
+  
+      <!-- Medical Info Row -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-6">
+          <label for="id_diagnoses" class="form-label">Diagnoses</label>
+          {{ form.diagnoses|add_class:"form-control" }}
+        </div>
+        <div class="col-md-6">
+          <label for="id_treatments" class="form-label">Treatments</label>
+          {{ form.treatments|add_class:"form-control" }}
+        </div>
+        <div class="col-md-6">
+          <label for="id_allergies" class="form-label">Allergies</label>
+          {{ form.allergies|add_class:"form-control" }}
+        </div>
+        <div class="col-md-6">
+          <label for="id_laboratory_test_results" class="form-label">Lab Results</label>
+          {{ form.laboratory_test_results|add_class:"form-control" }}
+        </div>
+        <div class="col-md-6">
+          <label for="id_imaging_studies" class="form-label">Imaging Studies</label>
+          {{ form.imaging_studies|add_class:"form-control" }}
+        </div>
+        <div class="col-md-6">
+          <label for="id_dosage_instruction" class="form-label">Dosage Instructions</label>
+          {{ form.dosage_instruction|add_class:"form-control" }}
+        </div>
+      </div>
+  
+      <!-- Prescribed Drugs Section -->
+      <h4 class="mb-3">Prescribed Drugs</h4>
+      <div id="drug-forms">
+        {% for d in existing_drugs %}
+        <div class="row align-items-end mb-3 drug-form-row">
+          <div class="col-md-5">
+            <label class="form-label">Drug</label>
+            <select name="drug_id" class="form-select">
+              {% for drug in all_drugs %}
+              <option value="{{ drug.drug_id }}"
+                {% if drug.drug_id == d.drug_id %}selected{% endif %}>
+                {{ drug.drug_name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Quantity</label>
+            <input type="number" name="quantity" class="form-control" value="{{ d.quantity }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Instructions</label>
+            <input type="text" name="instructions" class="form-control" value="{{ d.instructions }}">
+          </div>
+        </div>
+        {% empty %}
+        <!-- one empty row if none -->
+        <div class="row align-items-end mb-3 drug-form-row">
+          <div class="col-md-5">
+            <label class="form-label">Drug</label>
+            <select name="drug_id" class="form-select">
+              {% for drug in all_drugs %}
+              <option value="{{ drug.drug_id }}">{{ drug.drug_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Quantity</label>
+            <input type="number" name="quantity" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Instructions</label>
+            <input type="text" name="instructions" class="form-control">
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+  
+      <div class="mb-4 text-end">
+        <button type="button" id="add-drug" class="btn btn-outline-primary">
+          + Add Another Drug
+        </button>
+      </div>
+  
+      <!-- Save/Cancel Buttons -->
+      <div class="d-flex justify-content-end gap-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="{% url 'prescription_list' %}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+  
+  <script>
+    document.getElementById('add-drug').addEventListener('click', function() {
+      const container = document.getElementById('drug-forms');
+      const row       = container.querySelector('.drug-form-row').cloneNode(true);
+      row.querySelectorAll('input').forEach(i => i.value = '');
+      row.querySelector('select').selectedIndex = 0;
+      container.appendChild(row);
     });
-    
-    document.getElementById('drug-forms').appendChild(newForm);
-    totalForms.value = formNum + 1;
-}
-</script>
-{% endblock %}
+  </script>
+  {% endblock %}
