@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'clinic',
+    'widget_tweaks',
 ]
 
 MIDDLEWARE = [
@@ -77,7 +78,7 @@ WSGI_APPLICATION = 'HealthCareSystem.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'healthcare_db',
+        'NAME': 'healthcare_db_2',
         'USER': 'root',
         'PASSWORD': 'Akshat@123',
         'HOST': 'localhost',

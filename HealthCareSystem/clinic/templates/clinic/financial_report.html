@@ -1,0 +1,24 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<h1>Financial Report</h1>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Payment Status</th>
+            <th>Total Amount</th>
+            <th>Average Bill</th>
+            <th>Count</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in financials %}
+        <tr>
+            <td>{{ item.status }}</td>
+            <td>${{ item.total|floatformat:2 }}</td>
+            <td>${{ item.average|floatformat:2 }}</td>
+            <td>{{ item.count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

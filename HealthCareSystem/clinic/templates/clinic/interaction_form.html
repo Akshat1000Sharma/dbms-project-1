@@ -1,0 +1,68 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow mt-4">
+                <div class="card-header bg-warning">
+                    <h2 class="mb-0">Add Drug Interaction</h2>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{ form.drug_1.label }}</label>
+                                    {{ form.drug_1 }}
+                                    {{ form.drug_1.errors }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{ form.drug_2.label }}</label>
+                                    {{ form.drug_2 }}
+                                    {{ form.drug_2.errors }}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>{{ form.interaction_details.label }}</label>
+                                    {{ form.interaction_details }}
+                                    {{ form.interaction_details.errors }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{ form.severity_level.label }}</label>
+                                    {{ form.severity_level }}
+                                    {{ form.severity_level.errors }}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>{{ form.alert.label }}</label>
+                                    {{ form.alert }}
+                                    {{ form.alert.errors }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-3 mt-4">
+                            <button type="submit" class="btn btn-primary px-4">Save</button>
+                            <a href="{% url 'drug_list' %}" class="btn btn-secondary px-4">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

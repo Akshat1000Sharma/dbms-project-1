@@ -1,0 +1,67 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Prescription Management</h1>
+    <a class="btn btn-success mb-3" href="{% url 'prescription_create' %}">Add New Prescription</a>
+    
+    <div class="card shadow">
+        <div class="card-body">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Patient</th>
+                        <th>Staff</th>
+                        <th>Diagnoses</th>
+                        <th>Treatments</th>
+                        <th>Date Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prescription in prescriptions %}
+                    <tr>
+                        <td>{{ prescription.prescription_id }}</td>
+                        <td>{{ prescription.patient_id }}</td>  <!-- Update if you have patient name access -->
+                        <td>{{ prescription.staff_id }}</td>    <!-- Update if you have staff name access -->
+                        <td>{{ prescription.diagnoses|truncatechars:20 }}</td>
+                        <td>{{ prescription.treatments|truncatechars:20 }}</td>
+                        <td>{{ prescription.created_at|date:"Y-m-d" }}</td>
+                        <td>
+                            <a class="btn btn-info btn-sm" 
+                               href="{% url 'prescription_detail' prescription.prescription_id %}">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a class="btn btn-warning btn-sm" 
+                               href="{% url 'prescription_update' prescription.prescription_id %}">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="post" 
+                                  action="{% url 'prescription_delete' prescription.prescription_id %}" 
+                                  style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="btn btn-danger btn-sm" 
+                                        onclick="return confirm('Delete prescription permanently?');">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                            <a class="btn btn-outline-primary btn-sm"
+                               href="{% url 'prescription_drugs' prescription.prescription_id %}">
+                                <i class="bi bi-capsule"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            No prescriptions found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

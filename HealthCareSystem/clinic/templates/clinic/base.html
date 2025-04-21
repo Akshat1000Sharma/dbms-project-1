@@ -80,12 +80,12 @@
                 {% if perms.clinic.view_staffdetails %}
                 <li class="nav-item dropdown flex-fill text-center">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        Providers
+                        Staff
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{% url 'providers' %}">All Providers</a></li>
+                        <li><a class="dropdown-item" href="{% url 'provider_list' %}">All Staff</a></li>
                         {% if perms.clinic.add_staffdetails %}
-                        <li><a class="dropdown-item" href="{% url 'provider_create' %}">Add Provider</a></li>
+                        <li><a class="dropdown-item" href="{% url 'provider_create' %}">Add Staff</a></li>
                         {% endif %}
                     </ul>
                 </li>
@@ -95,7 +95,7 @@
                 {% if perms.clinic.view_billing or perms.clinic.view_insurance %}
                 <li class="nav-item dropdown flex-fill text-center">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        Financial
+                        Finance
                     </a>
                     <ul class="dropdown-menu">
                         {% if perms.clinic.view_billing %}
@@ -143,7 +143,7 @@
                 {% if perms.clinic.view_report %}
                 <li class="nav-item dropdown flex-fill text-center">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        Reporting
+                        Reports
                     </a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="{% url 'report_list' %}">All Reports</a></li>

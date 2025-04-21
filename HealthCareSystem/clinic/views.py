@@ -3,14 +3,20 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.generic import TemplateView
 from .forms import (
-    PatientForm, AppointmentForm, StaffForm, InsuranceForm,
-    BillingForm, PrescriptionForm, DrugForm, ReportForm, PatientContactForm
+    PatientForm, AppointmentForm, StaffForm, InsuranceForm, PrescriptionDrugForm,
+    BillingForm, PrescriptionForm, DrugForm, ReportForm, PatientContactForm, StaffContactForm, DrugInteractionForm
 )
 from .db_utils import (
     list_records, get_record, create_record, update_record
 )
 import logging
+from itertools import combinations
+from django.core.paginator import Paginator
 from django.utils import timezone
+from .models import Appointment, PrescriptionDrug, Prescription, Drug, DrugInteraction
+from django.http import JsonResponse
+from django.forms import inlineformset_factory
+from django.db.models import Q
 
 # user authentication imports
 from django.db import connection, IntegrityError
@@ -18,6 +24,25 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.decorators import login_required, permission_required
 from django.shortcuts import render, redirect
+from django.http import HttpResponseForbidden
+from django.shortcuts import render
+# prescription imports
+from django.contrib.auth.decorators import user_passes_test
+from django.http import HttpResponseForbidden
+from django.shortcuts import render, redirect
+from .db_utils import list_records, get_record, create_record, update_record, check_interactions_for_drugs
+from .forms import PrescriptionForm, DrugForm, PrescriptionDrugFormSet
+from django.contrib import messages
+
+def is_doctor(user):
+    # Adjust based on your user model's structure
+    return user.is_authenticated and user.role == 'Doctor'
+
+def custom_permission_denied(request, exception=None):
+    return render(request, 'clinic/403.html', status=403)
+
+def custom_page_not_found(request, exception=None):
+    return render(request, 'clinic/404.html', status=404)
 
 # 1) Home / Static pages
 #
@@ -41,13 +66,25 @@ class ReportingView(TemplateView):
 
 class ComplianceView(TemplateView):
     template_name = "clinic/compliance.html"
+    
 
-
+# -----------------------------------------------
 # Patient Management Views
 def patient_list(request):
-    patients = list_records('Patient')
-    
-    # Check contact status for each patient
+    # Get patients with their assigned doctors
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT 
+                p.*,
+                s.name AS doctor_name
+            FROM Patient p
+            LEFT JOIN Patients_Assigned pa ON p.patient_id = pa.patient_id
+            LEFT JOIN Staff_Details s ON pa.staff_id = s.staff_id AND s.occupation = 'doctor'
+        """)
+        cols = [col[0] for col in cursor.description]
+        patients = [dict(zip(cols, row)) for row in cursor.fetchall()]
+
+    # Existing contact check
     for patient in patients:
         contacts = list_records('Patient_Contact', where='patient_id = %s', params=[patient['patient_id']])
         patient['has_contacts'] = any(
@@ -196,241 +233,290 @@ def patient_contact_manage(request, pk):
 # Appointment CRUD
 
 logger = logging.getLogger(__name__)
-
 @login_required
 def appointment_list(request):
     with connection.cursor() as cursor:
-        # 1) Fetch *all* rows from Appointment
-        cursor.execute("SELECT * FROM Appointment")
-        raw_rows = cursor.fetchall()
-        raw_cols = [col[0] for col in cursor.description]
-        raw_appointments = [dict(zip(raw_cols, row)) for row in raw_rows]
-        logger.debug(f"RAW Appointment rows: {raw_appointments}")
-
-        # 2) Try the JOIN query
         cursor.execute("""
-            SELECT
-              a.appointment_id,
-              a.appointment_date,
-              a.appointment_time,
-              a.appointment_status AS patient_demographics
+            SELECT 
+                a.appointment_id,
+                p.patient_name,
+                s.name AS staff_name,
+                a.appointment_date,
+                a.appointment_time,
+                a.appointment_status,
+                a.reason_for_visit
             FROM Appointment a
             JOIN Patient p ON a.patient_id = p.patient_id
+            LEFT JOIN Staff_Details s ON a.staff_id = s.staff_id
             ORDER BY a.appointment_date DESC, a.appointment_time DESC
         """)
-        join_cols = [col[0] for col in cursor.description]
-        joined = [dict(zip(join_cols, row)) for row in cursor.fetchall()]
-        logger.debug(f"JOINed Appointment rows: {joined}")
-
-    # Pass both to the template
+        cols = [col[0] for col in cursor.description]
+        appointments = [dict(zip(cols, row)) for row in cursor.fetchall()]
+    
     return render(request, 'clinic/appointment_list.html', {
-        'appointments': joined,
-        'raw_appointments': raw_appointments,
+        'appointments': appointments
     })
 
 @login_required
-@permission_required('clinic.add_appointment', raise_exception=True)
+@permission_required('clinic.add_appointment')
 def appointment_create(request):
-    error = None
+    patients = list_records('Patient')
+    staff = list_records('Staff_Details', where="occupation = 'doctor'")
+    
     if request.method == 'POST':
-        form = AppointmentForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            # Extract IDs safely
-            patient_id = cd['patient'].patient_id
-            staff_id   = cd['staff'].staff_id
+        try:
             current_time = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
-            try:
-                create_record(
-                    'Appointment',
-                    [
-                        'patient_id', 'staff_id', 'appointment_date', 'appointment_time',
-                        'appointment_status', 'created_at', 'updated_at'
-                    ],
-                    [
-                        patient_id, staff_id, cd['appointment_date'],
-                        cd['appointment_time'], cd['appointment_status'],
-                        current_time, current_time
-                    ]
-                )
-                return redirect('appointment_list')
-
-            except IntegrityError as e:
-                # Likely the staff_id does not exist
-                form.add_error('staff', "Invalid staff selected. Please choose an existing provider.")
-
+            create_record(
+                'Appointment',
+                [
+                    'patient_id', 'staff_id', 'appointment_date', 'appointment_time',
+                    'appointment_status', 'booking_method', 'reschedule_count',  # Added
+                    'reminder_sent', 'reason_for_visit', 'notes',                # Added
+                    'created_at', 'updated_at'
+                ],
+                [
+                    request.POST['patient_id'],
+                    request.POST['staff_id'],
+                    request.POST['appointment_date'],
+                    request.POST['appointment_time'],
+                    request.POST.get('appointment_status', 'Scheduled'),
+                    request.POST.get('booking_method', 'Online'),
+                    0,  # Initial reschedule_count
+                    False,  # Initial reminder_sent
+                    request.POST.get('reason_for_visit', ''),
+                    request.POST.get('notes', ''),
+                    current_time,
+                    current_time
+                ]
+            )
+            return redirect('appointment_list')
+        except Exception as e:
+            error = f"Error creating appointment: {str(e)}"
     else:
-        form = AppointmentForm()
-
+        error = None
+    
     return render(request, 'clinic/appointment_form.html', {
-        'form': form,
+        'patients': patients,
+        'staff_members': staff,
+        'status_choices': [c[0] for c in Appointment.APPOINTMENT_STATUS],
+        'method_choices': [c[0] for c in Appointment.BOOKING_METHOD],
+        'error': error if 'error' in locals() else None
+    })
+    
+@login_required
+@permission_required('clinic.change_appointment', raise_exception=True)
+def appointment_update(request, pk):
+    appointment = get_record('Appointment', 'appointment_id', pk)
+    patients = list_records('Patient')
+    staff = list_records('Staff_Details', where="occupation = 'doctor'")
+    
+    if not appointment:
+        return redirect('appointment_list')
+    
+    if request.method == 'POST':
+        try:
+            update_record(
+                'Appointment',
+                [
+                    'patient_id', 'staff_id', 'appointment_date', 'appointment_time',
+                    'appointment_status', 'booking_method', 'reschedule_count',
+                    'reminder_sent', 'reason_for_visit', 'notes', 'updated_at'
+                ],
+                [
+                    request.POST['patient_id'],
+                    request.POST['staff_id'],
+                    request.POST['appointment_date'],
+                    request.POST['appointment_time'],
+                    request.POST.get('appointment_status', 'Scheduled'),
+                    request.POST.get('booking_method', 'Online'),
+                    appointment.get('reschedule_count', 0),  # Preserve existing value
+                    appointment.get('reminder_sent', False),  # Preserve existing value
+                    request.POST.get('reason_for_visit', ''),
+                    request.POST.get('notes', ''),
+                    timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+                ],
+                'appointment_id', pk
+            )
+            return redirect('appointment_list')
+        except Exception as e:
+            error = f"Error updating appointment: {str(e)}"
+    else:
+        error = None
+    
+    return render(request, 'clinic/appointment_form.html', {
+        'appointment': appointment,
+        'patients': patients,
+        'staff_members': staff,
+        'status_choices': [c[0] for c in Appointment.APPOINTMENT_STATUS],
+        'method_choices': [c[0] for c in Appointment.BOOKING_METHOD],
         'error': error
     })
-
+# ------------------------------------------------------------------
+# Healthcare Providers (StaffDetails) CRUD and Assignment
 
 @login_required
-def appointment_update(request, pk):
-    data = get_record('Appointment', 'appointment_id', pk)
-    if not data:
-        return redirect('appointment_list')
-
-    if request.method == 'POST':
-        form = AppointmentForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            patient_id = cd['patient'].patient_id
-            staff_id   = cd['staff'].staff_id
-
-            try:
-                update_record(
-                    'Appointment',
-                    [
-                        'patient_id','staff_id','appointment_date','appointment_time',
-                        'appointment_status','reschedule_count','booking_method',
-                        'reminder_sent','reason_for_visit','notes'
-                    ],
-                    [
-                        patient_id, staff_id, cd['appointment_date'],
-                        cd['appointment_time'], cd['appointment_status'],
-                        data['reschedule_count'],
-                        cd['booking_method'],
-                        data['reminder_sent'],
-                        cd['reason_for_visit'], cd['notes']
-                    ],
-                    'appointment_id', pk
-                )
-                return redirect('appointment_list')
-
-            except IntegrityError:
-                form.add_error('staff', "Invalid staff selected. Please choose an existing provider.")
-
-    else:
-        # Prepare initial data for the form
-        from .models import Patient, StaffDetails
-        data['patient'] = Patient.objects.get(pk=data['patient_id'])
-        data['staff']   = StaffDetails.objects.get(pk=data['staff_id'])
-        form = AppointmentForm(initial=data)
-
-    return render(request, 'clinic/appointment_form.html', {
-        'form': form
-    })
-
-# Healthcare Providers (StaffDetails)
-
+@permission_required('clinic.view_staff', raise_exception=True)
 def provider_list(request):
     providers = list_records('Staff_Details')
     return render(request, 'clinic/providers.html', {'providers': providers})
 
+@login_required
+@permission_required('clinic.add_staff', raise_exception=True)
 def provider_create(request):
     if request.method == 'POST':
         form = StaffForm(request.POST)
         if form.is_valid():
             cd = form.cleaned_data
-            create_record(
+            current_time = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            staff_id = create_record(
                 'Staff_Details',
-                ['name','occupation','speciality'],
+                ['name', 'occupation', 'speciality'],
                 [cd['name'], cd['occupation'], cd['speciality']]
             )
-            return redirect('providers')
+            return redirect('provider_list')
     else:
         form = StaffForm()
     return render(request, 'clinic/provider_form.html', {'form': form})
 
+@login_required
+@permission_required('clinic.change_staff', raise_exception=True)
 def provider_update(request, pk):
     data = get_record('Staff_Details', 'staff_id', pk)
     if not data:
-        return redirect('providers')
+        return redirect('provider_list')
     if request.method == 'POST':
         form = StaffForm(request.POST)
         if form.is_valid():
             cd = form.cleaned_data
+            current_time = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
             update_record(
                 'Staff_Details',
-                ['name','occupation','speciality'],
-                [cd['name'], cd['occupation'], cd['speciality']],
+                ['name', 'occupation', 'speciality'],
+                [cd['name'], cd['occupation'], cd['speciality'] ],
                 'staff_id', pk
             )
-            return redirect('providers')
+            return redirect('provider_list')
     else:
         form = StaffForm(initial=data)
     return render(request, 'clinic/provider_form.html', {'form': form})
 
+@login_required
+@permission_required('clinic.add_staffdetails', raise_exception=True)
+def provider_detail(request, pk):
+    staff = get_record('Staff_Details', 'staff_id', pk)
+    if not staff:
+        return redirect('provider_list')
+    
+    # Fetch contact info
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT phone_number, email, address FROM Staff_Contact WHERE staff_id = %s", [pk])
+        contact_row = cursor.fetchone()
+        contact = dict(zip(['phone_number', 'email', 'address'], contact_row)) if contact_row else None
+    
+    # Fetch assigned patients if doctor
+    assigned_patients = []
+    if staff['occupation'] == 'doctor':
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT p.patient_id, p.patient_name 
+                FROM Patients_Assigned pa
+                JOIN Patient p ON pa.patient_id = p.patient_id
+                WHERE pa.staff_id = %s
+            """, [pk])
+            assigned_patients = [
+                {'patient_id': row[0], 'patient_name': row[1]} for row in cursor.fetchall()
+            ]
+    
+    return render(request, 'clinic/provider_detail.html', {
+        'staff': staff,
+        'contact': contact,
+        'assigned_patients': assigned_patients
+    })
 
-#
-# 5) Billing & 6) Insurance
-#
-def insurance_list(request):
-    ins = list_records('Insurance')
-    return render(request, 'clinic/billing.html', {'insurances': ins})
-
-def insurance_create(request):
+@login_required
+@permission_required('clinic.delete_staff')
+def provider_delete(request, pk):
     if request.method == 'POST':
-        form = InsuranceForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            create_record(
-                'Insurance',
-                ['provider_name','policy_number','treatment_coverage_details','amount_covered'],
-                [cd['provider_name'], cd['policy_number'], cd['treatment_coverage_details'], cd['amount_covered']]
-            )
-            return redirect('billing')
-    else:
-        form = InsuranceForm()
-    return render(request, 'clinic/insurance_form.html', {'form': form})
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("DELETE FROM Staff_Contact WHERE staff_id = %s", [pk])
+                cursor.execute("DELETE FROM Patients_Assigned WHERE staff_id = %s", [pk])
+                cursor.execute("DELETE FROM Staff_Details WHERE staff_id = %s", [pk])
+            return redirect('provider_list')
+        except Exception as e:
+            pass
+    return redirect('provider_list')
 
-def billing_create(request):
+@login_required
+def provider_contact_manage(request, pk):
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT phone_number, email, address FROM Staff_Contact WHERE staff_id = %s", [pk])
+        contact_row = cursor.fetchone()
+        contact = dict(zip(['phone_number', 'email', 'address'], contact_row)) if contact_row else None
+
     if request.method == 'POST':
-        form = BillingForm(request.POST)
+        form = StaffContactForm(request.POST)
         if form.is_valid():
-            cd = form.cleaned_data
-            create_record(
-                'Billing',
-                ['patient_id','insurance_id','total_amount','payment_status','billing_date'],
-                [cd['patient'].patient_id, cd['insurance'].insurance_id,
-                 cd['total_amount'], cd['payment_status'], cd['billing_date']]
-            )
-            return redirect('billing')
+            phone = form.cleaned_data['phone_number']
+            email = form.cleaned_data['email']
+            address = form.cleaned_data['address']
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE Staff_Contact
+                    SET phone_number = %s, email = %s, address = %s
+                    WHERE staff_id = %s
+                """, [phone, email, address, pk])
+            return redirect('provider_detail', pk=pk)
     else:
-        form = BillingForm()
-    return render(request, 'clinic/billing_form.html', {'form': form})
+        initial = {
+            'phone_number': contact['phone_number'] if contact else '',
+            'email': contact['email'] if contact else '',
+            'address': contact['address'] if contact else ''
+        }
+        form = StaffContactForm(initial=initial)
+    
+    return render(request, 'clinic/provider_contact_form.html', {'form': form, 'staff_id': pk})
 
-
-#
-# 7) Prescription & 8) Drug Management
-#
-def prescription_list(request):
-    pres = list_records('Prescription')
-    return render(request, 'clinic/medication.html', {'prescriptions': pres})
-
-def prescription_create(request):
+@login_required
+@permission_required('clinic.assign_doctor')
+def assign_doctor(request, staff_id):
+    staff = get_record('Staff_Details', 'staff_id', staff_id)
+    if not staff or staff.get('occupation') != 'doctor':
+        return redirect('provider_list')
+    
     if request.method == 'POST':
-        form = PrescriptionForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            create_record(
-                'Prescription',
-                ['patient_id','staff_id','diagnoses','treatments','allergies',
-                 'laboratory_test_results','imaging_studies','dosage_instruction',
-                 'refill_requests','notes','alert'],
-                [cd['patient'].patient_id, cd['staff'].staff_id, cd['diagnoses'],
-                 cd['treatments'], cd['allergies'], cd['laboratory_test_results'],
-                 cd['imaging_studies'], cd['dosage_instruction'], cd['refill_requests'],
-                 cd['notes'], cd['alert']]
-            )
-            return redirect('medication')
-    else:
-        form = PrescriptionForm()
-    return render(request, 'clinic/prescription_form.html', {'form': form})
+        patient_id = request.POST.get('patient_id')
+        patient = get_record('Patient', 'patient_id', patient_id)
+        if patient:
+            with connection.cursor() as cursor:
+                # Remove existing assignment for patient
+                cursor.execute("DELETE FROM Patients_Assigned WHERE patient_id = %s", [patient_id])
+                # Assign new doctor
+                cursor.execute("""
+                    INSERT INTO Patients_Assigned (staff_id, patient_id, assigned_date)
+                    VALUES (%s, %s, %s)
+                """, [staff_id, patient_id, timezone.now().date()])
+            return redirect('provider_detail', pk=staff_id)
+    
+    # Fetch all patients
+    patients = list_records('Patient')
+    return render(request, 'clinic/assign_doctor.html', {
+        'staff': staff,
+        'patients': patients
+    })
 
+# ------------------------------------------------------------------------------
+# Drug Management
 def drug_list(request):
     drugs = list_records('Drug')
-    return render(request, 'clinic/medication.html', {'drugs': drugs})
+    return render(request, 'clinic/drug_list.html', {'drugs': drugs})
 
 def drug_create(request):
     if request.method == 'POST':
         form = DrugForm(request.POST)
         if form.is_valid():
             cd = form.cleaned_data
+            # Remove manual timestamp handling
             create_record(
                 'Drug',
                 ['drug_name','drug_type','description','dosage_form','strength',
@@ -439,39 +525,11 @@ def drug_create(request):
                  cd['strength'], cd['manufacturer'], cd['interactions'],
                  cd['contraindications'], cd['side_effects'], cd['warnings']]
             )
-            return redirect('medication')
+            return redirect('drug_list')
     else:
         form = DrugForm()
     return render(request, 'clinic/drug_form.html', {'form': form})
 
-
-#
-# 9) Reporting
-#
-def report_list(request):
-    reports = list_records('Report')
-    return render(request, 'clinic/reporting.html', {'reports': reports})
-
-def report_create(request):
-    if request.method == 'POST':
-        form = ReportForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            create_record(
-                'Report',
-                ['patient_id','billing_id','insurance_id'],
-                [cd['patient'].patient_id, cd['billing'].billing_id,
-                 cd['insurance'].insurance_id if cd['insurance'] else None]
-            )
-            return redirect('reporting')
-    else:
-        form = ReportForm()
-    return render(request, 'clinic/report_form.html', {'form': form})
-
-# Drug Management
-def drug_list(request):
-    drugs = list_records('Drug')
-    return render(request, 'clinic/drug_list.html', {'drugs': drugs})
 
 def drug_detail(request, pk):
     drug = get_record('Drug', 'drug_id', pk)
@@ -506,6 +564,329 @@ def drug_delete(request, pk):
             cursor.execute("DELETE FROM Drug WHERE drug_id = %s", [pk])
         return redirect('drug_list')
     return render(request, 'clinic/confirm_delete.html', {'object': 'Drug'})
+
+# --------------------------------------------------------------
+# Insurance Management
+def insurance_list(request):
+    ins = list_records('Insurance')
+    return render(request, 'clinic/billing.html', {'insurances': ins})
+
+def insurance_create(request):
+    if request.method == 'POST':
+        form = InsuranceForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            create_record(
+                'Insurance',
+                ['provider_name','policy_number','treatment_coverage_details','amount_covered'],
+                [cd['provider_name'], cd['policy_number'], cd['treatment_coverage_details'], cd['amount_covered']]
+            )
+            return redirect('billing')
+    else:
+        form = InsuranceForm()
+    return render(request, 'clinic/insurance_form.html', {'form': form})
+
+# --------------------------------------------------------------------------
+# Billing
+def billing_create(request):
+    if request.method == 'POST':
+        form = BillingForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            create_record(
+                'Billing',
+                ['patient_id','insurance_id','total_amount','payment_status','billing_date'],
+                [cd['patient'].patient_id, cd['insurance'].insurance_id,
+                 cd['total_amount'], cd['payment_status'], cd['billing_date']]
+            )
+            return redirect('billing')
+    else:
+        form = BillingForm()
+    return render(request, 'clinic/billing_form.html', {'form': form})
+
+
+# -----------------------------------------------------------------
+# Prescription
+def prescription_list(request):
+    pres = list_records('Prescription')
+    return render(request, 'clinic/prescription_list.html', {'prescriptions': pres})
+
+def prescription_create(request):
+    PrescriptionDrugFormSet = inlineformset_factory(
+        Prescription, 
+        PrescriptionDrug, 
+        form=PrescriptionDrugForm, 
+        extra=1,
+        min_num=1,  # Require at least 1 drug
+        validate_min=True
+    )
+    
+    if request.method == 'POST':
+        form = PrescriptionForm(request.POST)
+        formset = PrescriptionDrugFormSet(request.POST, prefix='drugs')
+        
+        if form.is_valid() and formset.is_valid():
+            try:
+                # Process patient/staff as model instances
+                prescription = form.save(commit=False)
+                prescription.patient = form.cleaned_data['patient']
+                prescription.staff = form.cleaned_data['staff']
+                prescription.save()
+                
+                # Save formset with prescription instance
+                formset.instance = prescription
+                formset.save()
+                
+                messages.success(request, 'Prescription created successfully!')
+                return redirect('prescription_detail', pk=prescription.pk)
+                
+            except Exception as e:
+                messages.error(request, f'Error saving prescription: {str(e)}')
+        else:
+            # Show form errors
+            messages.error(request, 'Please correct the errors below')
+            print("Form errors:", form.errors)  # Debug logging
+            print("Formset errors:", formset.errors)  # Debug logging
+    else:
+        form = PrescriptionForm()
+        formset = PrescriptionDrugFormSet(prefix='drugs', queryset=PrescriptionDrug.objects.none())
+    
+    return render(request, 'clinic/prescription_form.html', {
+        'form': form,
+        'formset': formset
+    })    
+def prescription_detail(request, pk):
+    prescription = get_record('Prescription', 'prescription_id', pk)
+    prescription = get_record('', 'prescription_id', pk)
+    return render(request, 'clinic/prescription_detail.html', {'prescription': prescription})
+
+def prescription_update(request, pk):
+    data = get_record('Prescription', 'prescription_id', pk)
+    if request.method == 'POST':
+        form = PrescriptionForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            update_record(
+                'Prescription',
+                ['patient_id','staff_id','diagnoses','treatments','allergies',
+                 'laboratory_test_results','imaging_studies','dosage_instruction',
+                 'refill_requests','notes','alert'],
+                [cd['patient'].patient_id, cd['staff'].staff_id, cd['diagnoses'],
+                 cd['treatments'], cd['allergies'], cd['laboratory_test_results'],
+                 cd['imaging_studies'], cd['dosage_instruction'], cd['refill_requests'],
+                 cd['notes'], cd['alert']],
+                'prescription_id', pk
+            )
+            return redirect('prescription_detail', pk=pk)
+    else:
+        from .models import Patient, StaffDetails
+        data['patient'] = Patient.objects.get(pk=data['patient_id'])
+        data['staff'] = StaffDetails.objects.get(pk=data['staff_id'])
+        form = PrescriptionForm(initial=data)
+    return render(request, 'clinic/prescription_form.html', {'form': form})
+
+def prescription_delete(request, pk):
+    if request.method == 'POST':
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM Prescription WHERE prescription_id = %s", [pk])
+        return redirect('prescription_list')
+    return render(request, 'clinic/confirm_delete.html', {'object': 'Prescription'})
+
+def prescription_drugs(request, prescription_id):
+    # Get prescription using your existing get_record function
+    prescription = get_record('Prescription', 'prescription_id', prescription_id)
+    if not prescription:
+        return redirect('prescription_list')
+
+    # Get related drugs using the PrescriptionDrug model
+    PrescriptionDrugFormSet = inlineformset_factory(
+        Prescription, 
+        PrescriptionDrug, 
+        form=PrescriptionDrugForm, 
+        extra=1,
+        can_delete=True
+    )
+
+    if request.method == 'POST':
+        formset = PrescriptionDrugFormSet(
+            request.POST, 
+            instance=Prescription.objects.get(pk=prescription_id)
+        )
+        
+        if formset.is_valid():
+            # Check for drug interactions
+            drug_ids = [form.cleaned_data['drug'].drug_id for form in formset if form.cleaned_data and not form.cleaned_data.get('DELETE', False)]
+            interactions = check_interactions_for_drugs(drug_ids)
+            
+            if interactions:
+                # Store temporary data in session
+                request.session['temp_drug_data'] = {
+                    'form_data': request.POST,
+                    'interactions': interactions,
+                    'prescription_id': prescription_id
+                }
+                return redirect('confirm_interactions')
+            
+            formset.save()
+            return redirect('prescription_detail', pk=prescription_id)
+
+    else:
+        formset = PrescriptionDrugFormSet(
+            instance=Prescription.objects.get(pk=prescription_id)
+        )
+
+    return render(request, 'clinic/prescription_drugs.html', {
+        'formset': formset,
+        'prescription': prescription
+    })
+# --------------------------------------------------------------------------
+# Drug Interaction Check
+def check_interactions(request):
+    drug_ids = request.GET.getlist('drug_ids[]')
+    interactions = check_interactions_for_drugs([int(id) for id in drug_ids])
+    return JsonResponse({'interactions': interactions})
+
+def confirm_interactions(request):
+    if request.method == 'POST':
+        temp_data = request.session.get('temp_prescription_data')
+        if temp_data:
+            form = PrescriptionForm(temp_data['form_data'])
+            formset = PrescriptionDrugFormSet(temp_data['form_data'], prefix='drugs')
+            
+            if form.is_valid() and formset.is_valid():
+                prescription = form.save(commit=False)
+                prescription.alert = "\n".join(
+                    [f"Interaction between {i['drug1']} and {i['drug2']}: {i['details']}" 
+                     for i in temp_data['interactions']]
+                )
+                prescription.save()
+                formset.instance = prescription
+                formset.save()
+                del request.session['temp_prescription_data']
+                return redirect('prescription_detail', pk=prescription.pk)
+        
+    temp_data = request.session.get('temp_prescription_data', {})
+    return render(request, 'clinic/interaction_confirm.html', {
+        'interactions': temp_data.get('interactions', [])
+    })
+def drug_interaction_create(request):
+    if request.method == 'POST':
+        form = DrugInteractionForm(request.POST)
+        if form.is_valid():
+            try:
+                interaction = form.save()
+                messages.success(request, 'Drug interaction added successfully!')
+                return redirect('drug_list')
+            except Exception as e:
+                messages.error(request, f'Error saving interaction: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below')
+    else:
+        form = DrugInteractionForm()
+    
+    return render(request, 'clinic/interaction_form.html', {'form': form})
+
+def drug_interaction_list(request):
+    all_drugs = Drug.objects.all().order_by('drug_name')
+    interactions = DrugInteraction.objects.all().select_related('drug_1', 'drug_2')
+    
+    # Create a dictionary for quick lookup
+    interaction_map = {}
+    for interaction in interactions:
+        key = tuple(sorted([interaction.drug_1_id, interaction.drug_2_id]))
+        interaction_map[key] = interaction
+    
+    # Generate unique pairs
+    drug_pairs = []
+    seen = set()
+    for interaction in interactions:
+        pair = tuple(sorted([interaction.drug_1_id, interaction.drug_2_id]))
+        if pair not in seen:
+            seen.add(pair)
+            drug_pairs.append({
+                'drug1': interaction.drug_1,
+                'drug2': interaction.drug_2,
+                'interaction': interaction,
+                'is_default': interaction.is_default()
+            })
+    
+    # Sort by drug names
+    drug_pairs.sort(key=lambda x: (x['drug1'].drug_name, x['drug2'].drug_name))
+    
+    paginator = Paginator(drug_pairs, 30)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    return render(request, 'clinic/drug_interaction_list.html', {
+        'page_obj': page_obj
+    })
+
+def drug_interaction_edit(request, drug1_id, drug2_id):
+    try:
+        drug1 = Drug.objects.get(pk=drug1_id)
+        drug2 = Drug.objects.get(pk=drug2_id)
+    except Drug.DoesNotExist:
+        return redirect('drug_interaction_list')
+
+    # Find existing interaction in any direction
+    interaction = DrugInteraction.objects.filter(
+        (Q(drug_1=drug1, drug_2=drug2) | 
+         Q(drug_1=drug2, drug_2=drug1))
+    ).first()
+
+    if request.method == 'POST':
+        form = DrugInteractionForm(request.POST, instance=interaction)
+        if form.is_valid():
+            # Ensure consistent ordering of drug pairs
+            cleaned_data = form.cleaned_data
+            drug_a, drug_b = sorted([cleaned_data['drug_1'], cleaned_data['drug_2']], 
+                                   key=lambda x: x.drug_name)
+            
+            # Update instance with ordered drugs
+            interaction = form.save(commit=False)
+            interaction.drug_1 = drug_a
+            interaction.drug_2 = drug_b
+            interaction.save()
+            
+            messages.success(request, 'Interaction updated successfully!')
+            return redirect('drug_interaction_list')
+    else:
+        initial = {
+            'drug_1': drug1,
+            'drug_2': drug2,
+            'interaction_details': interaction.interaction_details if interaction else '',
+            'severity_level': interaction.severity_level if interaction else 'Low',
+            'alert': interaction.alert if interaction else ''
+        }
+        form = DrugInteractionForm(instance=interaction, initial=initial)
+    
+    return render(request, 'clinic/drug_interaction_edit.html', {
+        'form': form,
+        'drug1': drug1,
+        'drug2': drug2
+    })
+# -------------------------------------------------------------------------------
+# Reporting
+
+def report_list(request):
+    reports = list_records('Report')
+    return render(request, 'clinic/reporting.html', {'reports': reports})
+
+def report_create(request):
+    if request.method == 'POST':
+        form = ReportForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            create_record(
+                'Report',
+                ['patient_id','billing_id','insurance_id'],
+                [cd['patient'].patient_id, cd['billing'].billing_id,
+                 cd['insurance'].insurance_id if cd['insurance'] else None]
+            )
+            return redirect('reporting')
+    else:
+        form = ReportForm()
+    return render(request, 'clinic/report_form.html', {'form': form})
 
 # Similar pattern for Insurance, Billing, Prescription, Report
 # -----------------------------------------------------------
@@ -578,43 +959,7 @@ def billing_delete(request, pk):
         return redirect('billing_list')
     return render(request, 'clinic/confirm_delete.html', {'object': 'Billing'})
 
-# Prescription Management
-def prescription_detail(request, pk):
-    prescription = get_record('Prescription', 'prescription_id', pk)
-    return render(request, 'clinic/prescription_detail.html', {'prescription': prescription})
-
-def prescription_update(request, pk):
-    data = get_record('Prescription', 'prescription_id', pk)
-    if request.method == 'POST':
-        form = PrescriptionForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            update_record(
-                'Prescription',
-                ['patient_id','staff_id','diagnoses','treatments','allergies',
-                 'laboratory_test_results','imaging_studies','dosage_instruction',
-                 'refill_requests','notes','alert'],
-                [cd['patient'].patient_id, cd['staff'].staff_id, cd['diagnoses'],
-                 cd['treatments'], cd['allergies'], cd['laboratory_test_results'],
-                 cd['imaging_studies'], cd['dosage_instruction'], cd['refill_requests'],
-                 cd['notes'], cd['alert']],
-                'prescription_id', pk
-            )
-            return redirect('prescription_detail', pk=pk)
-    else:
-        from .models import Patient, StaffDetails
-        data['patient'] = Patient.objects.get(pk=data['patient_id'])
-        data['staff'] = StaffDetails.objects.get(pk=data['staff_id'])
-        form = PrescriptionForm(initial=data)
-    return render(request, 'clinic/prescription_form.html', {'form': form})
-
-def prescription_delete(request, pk):
-    if request.method == 'POST':
-        with connection.cursor() as cursor:
-            cursor.execute("DELETE FROM Prescription WHERE prescription_id = %s", [pk])
-        return redirect('prescription_list')
-    return render(request, 'clinic/confirm_delete.html', {'object': 'Prescription'})
-
+# ---------------------------------------------------------------
 # Report Management
 def report_detail(request, pk):
     report = get_record('Report', 'report_id', pk)
@@ -649,7 +994,28 @@ def report_delete(request, pk):
         return redirect('report_list')
     return render(request, 'clinic/confirm_delete.html', {'object': 'Report'})
 
+# ------------------------------------------------
+# EHR
+def ehr_detail(request, pk):
+    with connection.cursor() as cursor:
+        # Get comprehensive patient health record
+        cursor.execute("""
+            SELECT p.*, 
+                   GROUP_CONCAT(pr.diagnoses) AS diagnoses,
+                   GROUP_CONCAT(pr.treatments) AS treatments,
+                   GROUP_CONCAT(d.drug_name) AS medications
+            FROM Patient p
+            LEFT JOIN Prescription pr ON p.patient_id = pr.patient_id
+            LEFT JOIN PrescriptionDrug pd ON pr.prescription_id = pd.prescription_id
+            LEFT JOIN Drug d ON pd.drug_id = d.drug_id
+            WHERE p.patient_id = %s
+            GROUP BY p.patient_id
+        """, [pk])
+        ehr = dict(zip([col[0] for col in cursor.description], cursor.fetchone()))
+    
+    return render(request, 'clinic/ehr_detail.html', {'ehr': ehr})
 
+# ---------------------------------------------------------------------
 # User Authentication: SIGNUP, LOGIN & LOGOUT
 
 def signup_view(request):

@@ -1,37 +1,58 @@
 {% extends 'clinic/base.html' %}
-{% block content %}
-<h1 class="mb-4">Appointment Scheduling</h1>
-<a class="btn btn-success mb-3" href="{% url 'appointment_create' %}">Book New Appointment</a>
 
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Patient</th>
-      <th>Date</th>
-      <th>Time</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for appointment in appointments %}
-    <tr>
-      <td>{{ appointment.appointment_id }}</td>
-      <td>{{ appointment.patient_demographics }}</td>
-      <td>{{ appointment.appointment_date }}</td>
-      <td>{{ appointment.appointment_time }}</td>
-      <td>{{ appointment.appointment_status }}</td>
-      <td>
-        <a class="btn btn-warning btn-sm"
-           href="{% url 'appointment_update' appointment.appointment_id %}">
-          Edit
-        </a>
-      </td>
-    </tr>
-    {% empty %}
-    <tr><td colspan="6">No appointments found.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Appointments</h1>
+    <a href="{% url 'appointment_create' %}" class="btn btn-success mb-3">
+        <i class="fas fa-plus"></i> New Appointment
+    </a>
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Patient</th>
+                        <th>Doctor</th>
+                        <th>Status</th>
+                        <th>Reason</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appt in appointments %}
+                    <tr>
+                        <td>{{ appt.appointment_date }}</td>
+                        <td>{{ appt.appointment_time|time:"H:i" }}</td>
+                        <td>{{ appt.patient_name }}</td>
+                        <td>{{ appt.staff_name|default:"Not assigned" }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if appt.appointment_status == 'Scheduled' %}bg-primary
+                                {% elif appt.appointment_status == 'Completed' %}bg-success
+                                {% elif appt.appointment_status == 'Cancelled' %}bg-danger
+                                {% else %}bg-warning{% endif %}">
+                                {{ appt.appointment_status }}
+                            </span>
+                        </td>
+                        <td>{{ appt.reason_for_visit|truncatechars:20 }}</td>
+                        <td>
+                            <a href="{% url 'appointment_update' appt.appointment_id %}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No appointments found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

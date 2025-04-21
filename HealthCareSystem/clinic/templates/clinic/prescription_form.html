@@ -1,0 +1,217 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<style>
+    .prescription-box {
+        max-width: 1000px;
+        margin: 2rem auto;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    .form-header {
+        background: #007BFF;
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px 10px 0 0;
+    }
+    .form-body {
+        padding: 2rem;
+        position: relative;
+        min-height: 500px;
+    }
+    .form-section {
+        margin-bottom: 2rem;
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .form-group label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #2c3e50;
+    }
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+        transition: border-color 0.15s ease-in-out;
+    }
+    .form-control:focus {
+        border-color: #007BFF;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    }
+    .button-group {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding: 1.5rem 0;
+        border-top: 1px solid #eee;
+        margin-top: 2rem;
+    }
+    .drug-form-row {
+        border: 1px solid #eee;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 5px;
+    }
+</style>
+
+{% if form.errors or formset.errors %}
+<div class="alert alert-danger">
+    <strong>Form Errors:</strong>
+    {{ form.non_field_errors }}
+    {{ formset.non_form_errors }}
+    {% for field in form %}
+        {% if field.errors %}
+            <div>{{ field.label }}: {{ field.errors }}</div>
+        {% endif %}
+    {% endfor %}
+    {% for form in formset %}
+        {% for field in form %}
+            {% if field.errors %}
+                <div>Drug {{ forloop.counter }} - {{ field.label }}: {{ field.errors }}</div>
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+</div>
+{% endif %}
+<div class="prescription-box">
+    <div class="form-header">
+        <h2 class="mb-0">{% if form.instance.pk %}Edit Prescription{% else %}New Prescription{% endif %}</h2>
+    </div>
+    
+    <div class="form-body">
+        <form method="post" id="prescription-form">
+            {% csrf_token %}
+            
+            <div class="form-section">
+                <!-- Patient and Staff Selection -->
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.patient.id_for_label }}">Patient</label>
+                            {{ form.patient }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.staff.id_for_label }}">Staff</label>
+                            {{ form.staff }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medical Information Section -->
+            <div class="form-section">
+                <h4 class="mb-4 border-bottom pb-2">Medical Information</h4>
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.diagnoses.id_for_label }}">Diagnoses</label>
+                            {{ form.diagnoses }}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.treatments.id_for_label }}">Treatments</label>
+                            {{ form.treatments }}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.allergies.id_for_label }}">Allergies</label>
+                            {{ form.allergies }}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.laboratory_test_results.id_for_label }}">Lab Results</label>
+                            {{ form.laboratory_test_results }}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.imaging_studies.id_for_label }}">Imaging Studies</label>
+                            {{ form.imaging_studies }}
+                        </div>
+                        <div class="form-group">
+                            <label for="{{ form.dosage_instruction.id_for_label }}">Dosage Instructions</label>
+                            {{ form.dosage_instruction }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prescribed Drugs Section -->
+            <div class="form-section">
+                <h4 class="mb-4 border-bottom pb-2">Prescribed Drugs</h4>
+                <div id="drug-forms">
+                    {{ formset.management_form }}
+                    {% for form in formset %}
+                    <div class="drug-form-row">
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <div class="form-group">
+                                    <label>Drug</label>
+                                    {{ form.drug }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Quantity</label>
+                                    {{ form.quantity }}
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label>Instructions</label>
+                                    {{ form.instructions }}
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                {% if form.instance.pk %}
+                                <div class="form-group">
+                                    <label>Delete</label>
+                                    {{ form.DELETE }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-outline-primary mt-2" onclick="addDrugForm()">
+                    + Add Another Drug
+                </button>
+            </div>
+
+            <!-- Fixed Button Group -->
+            <div class="button-group">
+                <div class="d-flex justify-content-end gap-3">
+                    <button type="submit" class="btn btn-lg btn-primary px-5">Save</button>
+                    <a href="{% url 'prescription_list' %}" class="btn btn-lg btn-outline-secondary px-5">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Interaction Modal (keep previous implementation) -->
+
+<script>
+// JavaScript for dynamic form addition
+function addDrugForm() {
+    const totalForms = document.getElementById('id_drugs-TOTAL_FORMS');
+    const formNum = parseInt(totalForms.value);
+    const newForm = document.querySelector('.drug-form-row').cloneNode(true);
+    
+    // Update all relevant attributes/IDs
+    newForm.innerHTML = newForm.innerHTML.replace(/-\d+-/g, `-${formNum}-`);
+    newForm.querySelectorAll('input, select, textarea').forEach(input => {
+        input.value = '';
+        input.checked = false;
+    });
+    
+    document.getElementById('drug-forms').appendChild(newForm);
+    totalForms.value = formNum + 1;
+}
+</script>
+{% endblock %}

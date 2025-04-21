@@ -1,31 +1,18 @@
 {% extends 'clinic/base.html' %}
 {% block content %}
-<h1 class="mb-4">{{ drug.drug_name }}</h1>
-
-<div class="card">
-    <div class="card-body">
-        <h5 class="card-title">Drug Details</h5>
-        <dl class="row">
-            <dt class="col-sm-3">Type</dt>
-            <dd class="col-sm-9">{{ drug.drug_type }}</dd>
-            
-            <dt class="col-sm-3">Dosage Form</dt>
-            <dd class="col-sm-9">{{ drug.dosage_form }}</dd>
-            
-            <dt class="col-sm-3">Strength</dt>
-            <dd class="col-sm-9">{{ drug.strength }}</dd>
-            
-            <dt class="col-sm-3">Manufacturer</dt>
-            <dd class="col-sm-9">{{ drug.manufacturer }}</dd>
-            
-            <dt class="col-sm-3">Interactions</dt>
-            <dd class="col-sm-9">{{ drug.interactions|default:"None recorded" }}</dd>
-        </dl>
-        
-        <div class="mt-4">
-            <a href="{% url 'drug_update' drug.drug_id %}" class="btn btn-warning">Edit</a>
-            <a href="{% url 'drug_list' %}" class="btn btn-secondary">Back to List</a>
-        </div>
-    </div>
-</div>
+  <h1 class="mb-4">Drug Details (ID: {{ drug.drug_id }})</h1>
+  <ul class="list-group mb-4">
+    <li class="list-group-item"><strong>Name:</strong> {{ drug.drug_name }}</li>
+    <li class="list-group-item"><strong>Type:</strong> {{ drug.drug_type }}</li>
+    <li class="list-group-item"><strong>Description:</strong> {{ drug.description }}</li>
+    <li class="list-group-item"><strong>Dosage Form:</strong> {{ drug.dosage_form }}</li>
+    <li class="list-group-item"><strong>Strength:</strong> {{ drug.strength }}</li>
+    <li class="list-group-item"><strong>Manufacturer:</strong> {{ drug.manufacturer }}</li>
+    <li class="list-group-item"><strong>Interactions:</strong> {{ drug.interactions }}</li>
+    <li class="list-group-item"><strong>Contraindications:</strong> {{ drug.contraindications }}</li>
+    <li class="list-group-item"><strong>Side Effects:</strong> {{ drug.side_effects }}</li>
+    <li class="list-group-item"><strong>Warnings:</strong> {{ drug.warnings }}</li>
+  </ul>
+  <a class="btn btn-warning" href="{% url 'drug_update' drug.drug_id %}">Edit Drug</a>
+  <a class="btn btn-secondary" href="{% url 'drug_list' %}">Back to List</a>
 {% endblock %}

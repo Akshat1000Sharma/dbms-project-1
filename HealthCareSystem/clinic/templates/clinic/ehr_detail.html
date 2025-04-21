@@ -1,0 +1,37 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<div class="ehr-container">
+    <h1>Complete Health Record for {{ ehr.demographic_details }}</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header">Medical Summary</div>
+        <div class="card-body">
+            <p><strong>Diagnoses:</strong> {{ ehr.diagnoses|default:"None recorded" }}</p>
+            <p><strong>Treatments:</strong> {{ ehr.treatments|default:"None recorded" }}</p>
+            <p><strong>Current Medications:</strong> {{ ehr.medications|default:"None" }}</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">Appointment History</div>
+                <ul class="list-group list-group-flush">
+                    {% for appt in appointments %}
+                    <li class="list-group-item">{{ appt.appointment_date }} - {{ appt.reason_for_visit }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">Test Results</div>
+                <div class="card-body">
+                    {{ ehr.laboratory_test_results|default:"No test results available" }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

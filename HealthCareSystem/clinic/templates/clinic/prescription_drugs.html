@@ -1,0 +1,166 @@
+{% extends 'clinic/base.html' %}
+{% load widget_tweaks %}
+{% block content %}
+<style>
+    .drug-form-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .form-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+    }
+    .form-group {
+        flex: 1;
+        min-width: 0;
+    }
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #2c3e50;
+    }
+    .form-control {
+        width: 100%;
+        height: 40px;
+        padding: 0.375rem 0.75rem;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+    .form-control-textarea {
+        height: 80px;
+        resize: vertical;
+    }
+    .delete-group {
+        width: 100px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .delete-checkbox {
+        width: 20px;
+        height: 20px;
+        margin-top: 24px;
+    }
+</style>
+
+<div class="drug-form-container">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h2 class="mb-0">Manage Drugs for Prescription #{{ prescription.prescription_id }}</h2>
+        </div>
+        <div class="card-body">
+            <form method="post" id="drug-form">
+                {% csrf_token %}
+                {{ formset.management_form }}
+                
+                <div id="drug-forms">
+                    {% for form in formset %}
+                    <div class="form-row">
+                        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+                        
+                        <!-- Drug Selection -->
+                        <div class="form-group">
+                            <label class="form-label" for="{{ form.drug.id_for_label }}">Drug</label>
+                            {{ form.drug|add_class:"form-control" }}
+                        </div>
+                        
+                        <!-- Quantity -->
+                        <div class="form-group" style="max-width: 120px;">
+                            <label class="form-label" for="{{ form.quantity.id_for_label }}">Quantity</label>
+                            {{ form.quantity|add_class:"form-control" }}
+                        </div>
+                        
+                        <!-- Instructions -->
+                        <div class="form-group">
+                            <label class="form-label" for="{{ form.instructions.id_for_label }}">Instructions</label>
+                            {{ form.instructions|add_class:"form-control form-control-textarea" }}
+                        </div>
+                        
+                        <!-- Delete -->
+                        <div class="delete-group">
+                            {% if form.instance.pk %}
+                            <div class="d-flex align-items-center">
+                                {{ form.DELETE|add_class:"delete-checkbox" }}
+                                <label class="form-label mb-0">Delete</label>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-primary" onclick="addDrugForm()">
+                        <i class="bi bi-plus-circle"></i> Add Drug
+                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary px-4">Save</button>
+                        <a href="{% url 'prescription_detail' prescription.prescription_id %}" 
+                           class="btn btn-secondary px-4">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function addDrugForm() {
+    const totalForms = document.getElementById('id_drugs-TOTAL_FORMS');
+    const formNum = parseInt(totalForms.value);
+    const formRow = document.querySelector('.form-row').cloneNode(true);
+    
+    // Update IDs and names
+    formRow.innerHTML = formRow.innerHTML.replace(
+        /drugs-(\d+)-/g, 
+        `drugs-${formNum}-`
+    );
+    
+    // Clear values
+    formRow.querySelectorAll('input, select, textarea').forEach(input => {
+        input.value = '';
+        if (input.type === 'checkbox') input.checked = false;
+    });
+
+    document.getElementById('drug-forms').appendChild(formRow);
+    totalForms.value = formNum + 1;
+}
+
+document.getElementById('drug-form').addEventListener('submit', function(e) {
+    const drugIds = Array.from(document.querySelectorAll('[id$="-drug"]'))
+                    .map(select => select.value)
+                    .filter(v => v !== '');
+    
+    if (drugIds.length > 1) {
+        e.preventDefault();
+        fetch(`{% url 'check_interactions' %}?drug_ids=${JSON.stringify(drugIds)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.interactions.length > 0) {
+                    const details = data.interactions.map(i => 
+                        `<div class="alert alert-danger mb-2">
+                            <strong>${i.drug1} + ${i.drug2}:</strong><br>
+                            ${i.details}<br>
+                            <em>Severity: ${i.severity}</em>
+                        </div>`
+                    ).join('');
+                    document.getElementById('interactionDetails').innerHTML = details;
+                    new bootstrap.Modal('#interactionModal').show();
+                } else {
+                    this.submit();
+                }
+            });
+    }
+});
+</script>
+{% endblock %}

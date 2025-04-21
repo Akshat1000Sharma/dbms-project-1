@@ -1,0 +1,67 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<div class="container">
+    <div class="card shadow mt-4">
+        <div class="card-header bg-warning">
+            <h2 class="mb-0">Drug Interactions Management</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Drug 1</th>
+                            <th>Drug 2</th>
+                            <th>Severity</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pair in page_obj %}
+                        <tr>
+                            <td>{{ pair.drug1.drug_name }}</td>
+                            <td>{{ pair.drug2.drug_name }}</td>
+                            
+                            <td>
+                                {% if pair.interaction %}
+                                    {{ pair.interaction.get_severity_level_display }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'drug_interaction_edit' pair.drug1.drug_id pair.drug2.drug_id %}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    {% if pair.interaction %}Edit{% else %}Add{% endif %}
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                    <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}

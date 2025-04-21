@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Confirm Prescription</h2>
+<h3>Drug Interactions Found</h3>
+<ul>
+    {% for interaction in interactions %}
+    <li>{{ interaction.drug1 }} and {{ interaction.drug2 }}: {{ interaction.details }} (Severity: {{ interaction.severity }})</li>
+    {% endfor %}
+</ul>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    {{ formset.management_form }}
+    {% for form in formset %}
+        {% for field in form %}
+            <input type="hidden" name="{{ field.html_name }}" value="{{ field.value }}">
+        {% endfor %}
+    {% endfor %}
+    <button type="submit" name="confirm">Confirm Anyway</button>
+    <a href="{% url 'prescription_create' %}">Cancel</a>
+</form>
+{% endblock %}

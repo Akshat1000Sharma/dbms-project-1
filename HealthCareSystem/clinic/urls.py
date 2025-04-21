@@ -11,14 +11,8 @@ urlpatterns = [
     path('login/',  login_view,  name='login'),
     path('logout/', logout_view, name='logout'),
 
-    # Home & Static
+    # Home
     path('', views.HomeView.as_view(), name='home'),
-    path('ehr/', views.EHRView.as_view(), name='ehr'),
-    path('providers/', views.provider_list, name='providers'),
-    path('billing/', views.insurance_list, name='billing'),
-    path('medication/', views.prescription_list, name='medication'),
-    path('reporting/', views.report_list, name='report_list'),
-    path('compliance/', views.ComplianceView.as_view(), name='compliance'),
 
     # Patient CRUD
     path('patients/',          views.patient_list,   name='patient_list'),
@@ -35,13 +29,20 @@ urlpatterns = [
     
     # Drug Management
     path('drugs/', views.drug_list, name='drug_list'),
+    path('drugs/new/', views.drug_create, name='drug_create'),
     path('drugs/<int:pk>/', views.drug_detail, name='drug_detail'),
     path('drugs/<int:pk>/edit/', views.drug_update, name='drug_update'),
     path('drugs/<int:pk>/delete/', views.drug_delete, name='drug_delete'),
 
-    # Provider CRUD
-    path('providers/new/', views.provider_create, name='provider_create'),
-    path('providers/<int:pk>/edit/', views.provider_update, name='provider_update'),
+    # Staff CRUD
+    path('staff/', views.provider_list, name='provider_list'),
+    path('staff/new/', views.provider_create, name='provider_create'),
+    path('staff/<int:pk>/', views.provider_detail, name='provider_detail'),
+    path('staff/<int:pk>/edit/', views.provider_update, name='provider_update'),
+    path('staff/<int:pk>/delete/', views.provider_delete, name='provider_delete'),
+    path('staff/<int:pk>/contacts/', views.provider_contact_manage, name='provider_contact_manage'),
+    path('staff/<int:staff_id>/assign/', views.assign_doctor, name='assign_doctor'),
+    
 
     # Insurance CRUD
     path('insurance/new/', views.insurance_create, name='insurance_create'),
@@ -57,18 +58,34 @@ urlpatterns = [
     path('billing/<int:pk>/edit/', views.billing_update, name='billing_update'),
     path('billing/<int:pk>/delete/', views.billing_delete, name='billing_delete'),
 
-    # Prescription & Drug CRUD
+    # Prescription CRUD
     path('prescriptions/', views.prescription_list, name='prescription_list'),
     path('prescriptions/new/', views.prescription_create, name='prescription_create'),
     path('prescriptions/<int:pk>/', views.prescription_detail, name='prescription_detail'),
     path('prescriptions/<int:pk>/edit/', views.prescription_update, name='prescription_update'),
     path('prescriptions/<int:pk>/delete/', views.prescription_delete, name='prescription_delete'),
-    path('drugs/new/', views.drug_create, name='drug_create'),
+    
+    # drug interaction check
+    path('prescriptions/<int:prescription_id>/drugs/', views.prescription_drugs, name='prescription_drugs'),
+    path('check_interactions/', views.check_interactions, name='check_interactions'),
+    path('drugs/interactions/new/', views.drug_interaction_create, name='drug_interaction_create'),
+    path('drugs/interactions/', views.drug_interaction_list, name='drug_interaction_list'),
+    path('drugs/interactions/<int:drug1_id>/<int:drug2_id>/', views.drug_interaction_edit, name='drug_interaction_edit'),
 
     # Reporting CRUD
+    path('reporting/', views.report_list, name='report_list'),
     path('reports/new/', views.report_create, name='report_create'),
     path('reports/<int:pk>/', views.report_detail, name='report_detail'),
     path('reports/<int:pk>/edit/', views.report_update, name='report_update'),
     path('reports/<int:pk>/delete/', views.report_delete, name='report_delete'),
     
+    # compliance
+    path('compliance/', views.ComplianceView.as_view(), name='compliance'),
+    
+    # EHR
+    path('ehr/', views.EHRView.as_view(), name='ehr'),
+    path('ehr/<int:pk>/', views.ehr_detail, name='ehr_detail'),
+
 ]
+handler403 = 'clinic.views.custom_permission_denied'
+handler404 = 'clinic.views.custom_page_not_found'

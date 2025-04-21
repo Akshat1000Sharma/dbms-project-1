@@ -1,32 +1,47 @@
 {% extends 'clinic/base.html' %}
 {% block content %}
-<h1 class="mb-4">Drug Inventory</h1>
-<a href="{% url 'drug_create' %}" class="btn btn-success mb-3">Add New Drug</a>
-
+<h1 class="mb-4">Drug Management</h1>
+<div class="mb-3">
+    <a href="{% url 'drug_interaction_list' %}" class="btn btn-warning">
+        <i class="bi bi-clipboard2-pulse"></i> Manage Drug Interactions
+    </a>
+    <a class="btn btn-success" href="{% url 'drug_create' %}">Add New Drug</a>
+</div>
 <table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Manufacturer</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for drug in drugs %}
-        <tr>
-            <td>{{ drug.drug_name }}</td>
-            <td>{{ drug.drug_type }}</td>
-            <td>{{ drug.manufacturer }}</td>
-            <td>
-                <a href="{% url 'drug_detail' drug.drug_id %}" class="btn btn-info btn-sm">View</a>
-                <a href="{% url 'drug_update' drug.drug_id %}" class="btn btn-warning btn-sm">Edit</a>
-                <a href="{% url 'drug_delete' drug.drug_id %}" class="btn btn-danger btn-sm">Delete</a>
-            </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="4">No drugs found</td></tr>
-        {% endfor %}
-    </tbody>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Dosage Form</th>
+      <th>Strength</th>
+      <th>Manufacturer</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for drug in drugs %}
+    <tr>
+      <td>{{ drug.drug_id }}</td>
+      <td>{{ drug.drug_name }}</td>
+      <td>{{ drug.drug_type }}</td>
+      <td>{{ drug.dosage_form }}</td>
+      <td>{{ drug.strength }}</td>
+      <td>{{ drug.manufacturer }}</td>
+      <td>
+        <a class="btn btn-info btn-sm" href="{% url 'drug_detail' drug.drug_id %}">View</a>
+        <a class="btn btn-warning btn-sm" href="{% url 'drug_update' drug.drug_id %}">Edit</a>
+        <form method="post" action="{% url 'drug_delete' drug.drug_id %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete drug permanently?');">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="7" class="text-center">No drugs available.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>
 {% endblock %}

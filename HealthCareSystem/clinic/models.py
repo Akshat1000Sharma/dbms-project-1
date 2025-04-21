@@ -38,6 +38,9 @@ class StaffDetails(models.Model):
         return self.name
     class Meta:
         db_table = 'Staff_Details'
+        permissions = [
+            ('assign_doctor', 'Can assign doctor to patients'),
+        ]
 
 
 class StaffContact(models.Model):
@@ -104,7 +107,7 @@ class Prescription(models.Model):
     dosage_instruction = models.TextField(blank=True, null=True)
     refill_requests = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
-    alert = models.TextField(default='No alert')
+    alert = models.TextField(default='No alert', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
@@ -146,16 +149,18 @@ class PrescriptionDrug(models.Model):
 
 
 class DrugInteraction(models.Model):
-    drug_id_1 = models.ForeignKey(Drug, on_delete=models.CASCADE, related_name='drug1')
-    drug_id_2 = models.ForeignKey(Drug, on_delete=models.CASCADE, related_name='drug2')
+    drug_1 = models.ForeignKey(Drug, on_delete=models.CASCADE, related_name='interactions1')
+    drug_2 = models.ForeignKey(Drug, on_delete=models.CASCADE, related_name='interactions2')
     interaction_details = models.CharField(max_length=500)
     severity_level = models.CharField(max_length=10, choices=(('Low','Low'),('Moderate','Moderate'),('High','High')))
     alert = models.TextField()
     def __str__(self):
-        return f"Interaction between {self.drug_id_1.drug_name} and {self.drug_id_2.drug_name}"
+        return f"Interaction between {self.drug_1.drug_name} and {self.drug_2.drug_name}"
     class Meta:
-        unique_together = ('drug_id_1', 'drug_id_2')
+        unique_together = ('drug_1', 'drug_2')
         db_table = 'Drug_Interaction'
+    def is_default(self):
+        return self.interaction_details == 'No known interaction'
 
 
 class Appointment(models.Model):

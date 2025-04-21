@@ -1,7 +1,7 @@
 # clinic/db_utils.py
 from django.db import connection
 
-# 1) Raw SQL trigger definitions
+# 1) Raw SQL trigger definitions for performing 3 tasks:
 #    - After inserting a Patient, automatically create an empty Patient_Contact
 #    - After inserting a Staff_Details, automatically create an empty Staff_Contact
 #    - After inserting a Drug, automatically populate Drug_Interaction
@@ -25,19 +25,13 @@ TRIGGERS = [
     END
     """,
     r"""
-    CREATE TRIGGER trg_drug_interaction_insert
+            CREATE TRIGGER trg_drug_interaction_insert
     AFTER INSERT ON Drug
     FOR EACH ROW
     BEGIN
-      -- Create interaction entries between the new drug and all existing drugs
-      INSERT INTO Drug_Interaction(drug_id_1, drug_id_2, interaction_details, severity_level, alert)
+      INSERT INTO Drug_Interaction(drug_1_id, drug_2_id, interaction_details, severity_level, alert)
         SELECT NEW.drug_id, d.drug_id, 'No known interaction', 'Low', 'No alert'
-        FROM Drug d
-        WHERE d.drug_id <> NEW.drug_id;
-      INSERT INTO Drug_Interaction(drug_id_1, drug_id_2, interaction_details, severity_level, alert)
-        SELECT d.drug_id, NEW.drug_id, 'No known interaction', 'Low', 'No alert'
-        FROM Drug d
-        WHERE d.drug_id <> NEW.drug_id;
+        FROM Drug d WHERE d.drug_id <> NEW.drug_id;
     END
     """
 ]
@@ -140,3 +134,23 @@ def update_record(table_name, fields, values, pk_name, pk_value):
             f"UPDATE {table_name} SET {set_clause} WHERE {pk_name} = %s",
             values + [pk_value]
         )
+def check_interactions_for_drugs(drug_ids):
+    if len(drug_ids) < 2:
+        return []
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT d1.drug_name, d2.drug_name, di.interaction_details, di.severity_level
+            FROM Drug_Interaction di
+            JOIN Drug d1 ON di.drug_id_1 = d1.drug_id
+            JOIN Drug d2 ON di.drug_id_2 = d2.drug_id
+            WHERE di.drug_id_1 IN %s AND di.drug_id_2 IN %s
+        """, [drug_ids, drug_ids])
+        interactions = []
+        for row in cursor.fetchall():
+            interactions.append({
+                'drug1': row[0],
+                'drug2': row[1],
+                'details': row[2],
+                'severity': row[3],
+            })
+        return interactions

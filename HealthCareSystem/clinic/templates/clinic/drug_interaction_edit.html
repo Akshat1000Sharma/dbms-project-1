@@ -1,0 +1,65 @@
+{% extends 'clinic/base.html' %}
+{% load widget_tweaks %}
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow mt-4">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">
+                        {% if form.instance.pk %}Edit{% else %}Add{% endif %} Interaction
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-info">
+                            Editing interaction between:<br>
+                            <strong>{{ drug1.drug_name }}</strong> and <strong>{{ drug2.drug_name }}</strong>
+                        </div>
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label class="form-label">Interaction Details</label>
+                            {% if form.instance.is_default %}
+                                {{ form.interaction_details|attr:"placeholder:No known interaction" }}
+                            {% else %}
+                                {{ form.interaction_details }}
+                            {% endif %}
+                            {{ form.interaction_details.errors }}
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Severity Level</label>
+                                {{ form.severity_level }}
+                                {{ form.severity_level.errors }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Prescription Alert Message</label>
+                            {{ form.alert }}
+                            {{ form.alert.errors }}
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="submit" class="btn btn-primary px-4">
+                                {% if form.instance.pk %}Update{% else %}Create{% endif %}
+                            </button>
+                            <a href="{% url 'drug_interaction_list' %}" 
+                               class="btn btn-secondary px-4">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,9 +1,110 @@
 {% extends 'clinic/base.html' %}
+
 {% block content %}
-<h1>{% if object %}Edit{% else %}Book{% endif %} Appointment</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn btn-success" type="submit">Submit</button>
-</form>
+<div class="container mt-4">
+    <h2 class="mb-4">
+        {% if appointment %}Edit{% else %}New{% endif %} Appointment
+    </h2>
+    
+    <div class="card">
+        <div class="card-body">
+            {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+            
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Patient</label>
+                        <select name="patient_id" class="form-select" required>
+                            <option value="">Select Patient</option>
+                            {% for patient in patients %}
+                            <option value="{{ patient.patient_id }}" 
+                                {% if appointment.patient_id == patient.patient_id %}selected{% endif %}>
+                                {{ patient.patient_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Doctor</label>
+                        <select name="staff_id" class="form-select">
+                            <option value="">Select Doctor</option>
+                            {% for staff in staff_members %}
+                            <option value="{{ staff.staff_id }}"
+                                {% if appointment.staff_id == staff.staff_id %}selected{% endif %}>
+                                {{ staff.name }} ({{ staff.speciality }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Date</label>
+                        <input type="date" name="appointment_date" 
+                               value="{{ appointment.appointment_date|default:'' }}"
+                               class="form-control" required>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Time</label>
+                        <input type="time" name="appointment_time"
+                               value="{{ appointment.appointment_time|default:'' }}"
+                               class="form-control" required>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Status</label>
+                        <select name="appointment_status" class="form-select">
+                            {% for status in status_choices %}
+                            <option value="{{ status }}"
+                                {% if appointment.appointment_status == status %}selected{% endif %}>
+                                {{ status }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Booking Method</label>
+                        <select name="booking_method" class="form-select">
+                            {% for method in method_choices %}
+                            <option value="{{ method }}"
+                                {% if appointment.booking_method == method %}selected{% endif %}>
+                                {{ method }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Reason for Visit</label>
+                        <input type="text" name="reason_for_visit"
+                               value="{{ appointment.reason_for_visit|default:'' }}"
+                               class="form-control">
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="3">
+                            {{ appointment.notes|default:'' }}
+                        </textarea>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Appointment
+                    </button>
+                    <a href="{% url 'appointment_list' %}" class="btn btn-outline-secondary">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

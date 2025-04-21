@@ -1,0 +1,57 @@
+{% extends 'clinic/base.html' %}
+
+{% block content %}
+<h1>{{ staff.name }}</h1>
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Basic Information</h5>
+        <p class="card-text">
+            <strong>Occupation:</strong> {{ staff.occupation|title }}<br>
+            <strong>Speciality:</strong> {{ staff.speciality|default:"N/A" }}
+        </p>
+        <a href="{% url 'provider_update' staff.staff_id %}" class="btn btn-warning">Edit Profile</a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Contact Information</h5>
+        <p class="card-text">
+            <strong>Phone:</strong> {{ contact.phone_number|default:"Not provided" }}<br>
+            <strong>Email:</strong> {{ contact.email|default:"Not provided" }}<br>
+            <strong>Address:</strong> {{ contact.address|default:"Not provided" }}
+        </p>
+        <a href="{% url 'provider_contact_manage' staff.staff_id %}" class="btn btn-secondary">Edit Contacts</a>
+    </div>
+</div>
+
+{% if staff.occupation == 'doctor' %}
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Assigned Patients</h5>
+        {% if assigned_patients %}
+            <ul class="list-group">
+                {% for patient in assigned_patients %}
+                <li class="list-group-item">
+                    {{ patient.patient_name }} (ID: {{ patient.patient_id }})
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-muted">No patients currently assigned</p>
+        {% endif %}
+        <div class="mt-3">
+            <a href="{% url 'assign_doctor' staff.staff_id %}" class="btn btn-primary">
+                Assign to Patient
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <a href="{% url 'provider_list' %}" class="btn btn-outline-secondary">
+        &larr; Back to Staff List
+    </a>
+</div>
+{% endblock %}

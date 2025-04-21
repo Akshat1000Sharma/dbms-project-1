@@ -1,0 +1,14 @@
+{% extends 'clinic/base.html' %}
+
+{% block content %}
+<h1>Assign {{ staff.name }} to Patient</h1>
+<form method="post">
+    {% csrf_token %}
+    <select name="patient_id" class="form-select">
+        {% for patient in patients %}
+        <option value="{{ patient.patient_id }}">{{ patient.patient_name }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary mt-3">Assign</button>
+</form>
+{% endblock %}
