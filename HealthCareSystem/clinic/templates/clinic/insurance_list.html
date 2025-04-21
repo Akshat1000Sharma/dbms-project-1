@@ -1,0 +1,40 @@
+{% extends 'clinic/base.html' %}
+{% block content %}
+<h1 class="mb-4">Insurance Management</h1>
+<a href="{% url 'insurance_create' %}" class="btn btn-success mb-3">Add New Insurance</a>
+<table class="table table-striped text-center">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Provider</th>
+      <th>Policy Number</th>
+      <th>Coverage Details</th>
+      <th>Amount Covered</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for insurance in insurances %}
+    <tr>
+      <td>{{ insurance.insurance_id }}</td>
+      <td>{{ insurance.provider_name }}</td>
+      <td>{{ insurance.policy_number }}</td>
+      <td>{{ insurance.treatment_coverage_details|truncatechars:30 }}</td>
+      <td>{{ insurance.amount_covered }}</td>
+      <td>
+        <a class="btn btn-info btn-sm" href="{% url 'insurance_detail' insurance.insurance_id %}">View</a>
+        <a class="btn btn-warning btn-sm" href="{% url 'insurance_update' insurance.insurance_id %}">Edit</a>
+        <form method="post" action="{% url 'insurance_delete' insurance.insurance_id %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete insurance permanently?');">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="6" class="text-center text-muted py-4">No insurance records found.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

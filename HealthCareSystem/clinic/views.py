@@ -52,21 +52,12 @@ class HomeView(TemplateView):
 class EHRView(TemplateView):
     template_name = "clinic/ehr.html"
 
-class ProvidersView(TemplateView):
-    template_name = "clinic/providers.html"
-
-class BillingView(TemplateView):
-    template_name = "clinic/billing.html"
 
 class MedicationView(TemplateView):
     template_name = "clinic/medication.html"
 
-class ReportingView(TemplateView):
-    template_name = "clinic/reporting.html"
 
-class ComplianceView(TemplateView):
-    template_name = "clinic/compliance.html"
-    
+
 
 # -----------------------------------------------
 # Patient Management Views
@@ -358,7 +349,7 @@ def appointment_update(request, pk):
 @permission_required('clinic.view_staff', raise_exception=True)
 def provider_list(request):
     providers = list_records('Staff_Details')
-    return render(request, 'clinic/providers.html', {'providers': providers})
+    return render(request, 'clinic/provider_list.html', {'providers': providers})
 
 @login_required
 @permission_required('clinic.add_staff', raise_exception=True)
@@ -919,35 +910,12 @@ def drug_interaction_edit(request, drug1_id, drug2_id):
         'drug1': drug1,
         'drug2': drug2
     })
-# -------------------------------------------------------------------------------
-# Reporting
-
-def report_list(request):
-    reports = list_records('Report')
-    return render(request, 'clinic/reporting.html', {'reports': reports})
-
-def report_create(request):
-    if request.method == 'POST':
-        form = ReportForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            create_record(
-                'Report',
-                ['patient_id','billing_id','insurance_id'],
-                [cd['patient'].patient_id, cd['billing'].billing_id,
-                 cd['insurance'].insurance_id if cd['insurance'] else None]
-            )
-            return redirect('reporting')
-    else:
-        form = ReportForm()
-    return render(request, 'clinic/report_form.html', {'form': form})
-
 
 # --------------------------------------------------------------
 # Insurance Management
 def insurance_list(request):
     ins = list_records('Insurance')
-    return render(request, 'clinic/billing.html', {'insurances': ins})
+    return render(request, 'clinic/insurance_list.html', {'insurances': ins})
 
 def insurance_create(request):
     if request.method == 'POST':
@@ -959,12 +927,11 @@ def insurance_create(request):
                 ['provider_name','policy_number','treatment_coverage_details','amount_covered'],
                 [cd['provider_name'], cd['policy_number'], cd['treatment_coverage_details'], cd['amount_covered']]
             )
-            return redirect('billing')
+            return redirect('insurance_list')
     else:
         form = InsuranceForm()
     return render(request, 'clinic/insurance_form.html', {'form': form})
 
-# Insurance Management
 def insurance_detail(request, pk):
     insurance = get_record('Insurance', 'insurance_id', pk)
     return render(request, 'clinic/insurance_detail.html', {'insurance': insurance})
@@ -1007,19 +974,53 @@ def billing_create(request):
                 [cd['patient'].patient_id, cd['insurance'].insurance_id,
                  cd['total_amount'], cd['payment_status'], cd['billing_date']]
             )
-            return redirect('billing')
+            return redirect('billing_list')
     else:
         form = BillingForm()
     return render(request, 'clinic/billing_form.html', {'form': form})
 
 # Billing Management
 def billing_list(request):
-    bills = list_records('Billing')
-    return render(request, 'clinic/billing_list.html', {'bills': bills})
+    raw = list_records('Billing')
+    bills = []
+    for b in raw:
+        # get patient name
+        p = get_record('Patient', 'patient_id', b['patient_id'])
+        b['patient_name'] = p.get('patient_name', '') if p else ''
+        # get insurance name
+        if b.get('insurance_id'):
+            i = get_record('Insurance', 'insurance_id', b['insurance_id'])
+            b['insurance_name'] = i.get('provider_name', '') if i else ''
+        else:
+            b['insurance_name'] = None
+        bills.append(b)
+
+    return render(request, 'clinic/billing_list.html', {
+        'bills': bills
+    })
+
 
 def billing_detail(request, pk):
+    # 1) fetch the raw billing row
     bill = get_record('Billing', 'billing_id', pk)
-    return render(request, 'clinic/billing_detail.html', {'bill': bill})
+    if not bill:
+        raise Http404("Bill not found")
+
+    # 2) look up the patient name
+    patient = get_record('Patient', 'patient_id', bill['patient_id'])
+    bill['patient_name'] = patient.get('patient_name', '') if patient else ''
+
+    # 3) look up the insurance provider name (if any)
+    ins_id = bill.get('insurance_id')
+    if ins_id:
+        ins = get_record('Insurance', 'insurance_id', ins_id)
+        bill['insurance_name'] = ins.get('provider_name', '') if ins else ''
+    else:
+        bill['insurance_name'] = None
+
+    return render(request, 'clinic/billing_detail.html', {
+        'bill': bill
+    })
 
 def billing_update(request, pk):
     data = get_record('Billing', 'billing_id', pk)
@@ -1050,8 +1051,30 @@ def billing_delete(request, pk):
         return redirect('billing_list')
     return render(request, 'clinic/confirm_delete.html', {'object': 'Billing'})
 
-# ---------------------------------------------------------------
-# Report Management
+# -------------------------------------------------------------------------------
+# Reporting
+
+def report_list(request):
+    reports = list_records('Report')
+    return render(request, 'clinic/report_list.html', {'reports': reports})
+
+def report_create(request):
+    if request.method == 'POST':
+        form = ReportForm(request.POST)
+        if form.is_valid():
+            current_time = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            cd = form.cleaned_data
+            create_record(
+                'Report',
+                ['patient_id','billing_id','insurance_id','created_at','updated_at'],
+                [cd['patient'].patient_id, cd['billing'].billing_id,
+                 cd['insurance'].insurance_id if cd['insurance'] else None,current_time,current_time]
+            )
+            return redirect('report_list')
+    else:
+        form = ReportForm()
+    return render(request, 'clinic/report_form.html', {'form': form})
+
 def report_detail(request, pk):
     report = get_record('Report', 'report_id', pk)
     return render(request, 'clinic/report_detail.html', {'report': report})
@@ -1062,11 +1085,12 @@ def report_update(request, pk):
         form = ReportForm(request.POST)
         if form.is_valid():
             cd = form.cleaned_data
+            current_time = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
             update_record(
                 'Report',
-                ['patient_id','billing_id','insurance_id'],
+                ['patient_id','billing_id','insurance_id','updated_at'],
                 [cd['patient'].patient_id, cd['billing'].billing_id,
-                 cd['insurance'].insurance_id if cd['insurance'] else None],
+                 cd['insurance'].insurance_id if cd['insurance'] else None, current_time],
                 'report_id', pk
             )
             return redirect('report_detail', pk=pk)

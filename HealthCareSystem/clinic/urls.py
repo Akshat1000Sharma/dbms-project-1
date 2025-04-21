@@ -20,7 +20,7 @@ urlpatterns = [
     path('patients/<int:pk>/', views.patient_detail, name='patient_detail'),  
     path('patients/<int:pk>/edit/', views.patient_update, name='patient_update'),
     path('patients/<int:pk>/delete/', views.patient_delete, name='patient_delete'),
-     path('patients/<int:pk>/contacts/', views.patient_contact_manage, name='patient_contact_manage'),
+    path('patients/<int:pk>/contacts/', views.patient_contact_manage, name='patient_contact_manage'),
 
     # Appointment CRUD
     path('appointments/', views.appointment_list, name='appointment_list'),
@@ -79,8 +79,6 @@ urlpatterns = [
     path('reports/<int:pk>/edit/', views.report_update, name='report_update'),
     path('reports/<int:pk>/delete/', views.report_delete, name='report_delete'),
     
-    # compliance
-    path('compliance/', views.ComplianceView.as_view(), name='compliance'),
     
     # EHR
     path('ehr/', views.EHRView.as_view(), name='ehr'),

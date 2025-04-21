@@ -1,0 +1,46 @@
+<!-- clinic/templates/clinic/report_detail.html -->
+{% extends 'clinic/base.html' %}
+{% block content %}
+<h2 class="mb-4">Report #{{ report.report_id }}</h2>
+
+<table class="table table-bordered">
+  <tr>
+    <th>Patient ID</th>
+    <td>{{ report.patient_id }}</td>
+  </tr>
+  <tr>
+    <th>Billing ID</th>
+    <td>{{ report.billing_id }}</td>
+  </tr>
+  <tr>
+    <th>Insurance ID</th>
+    <td>
+      {% if report.insurance_id %}
+        {{ report.insurance_id }}
+      {% else %}
+        <span class="text-muted">None</span>
+      {% endif %}
+    </td>
+  </tr>
+  <tr>
+    <th>Created At</th>
+    <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
+  </tr>
+  <tr>
+    <th>Updated At</th>
+    <td>{{ report.updated_at|date:"Y-m-d H:i" }}</td>
+  </tr>
+</table>
+
+<div class="d-flex gap-2 mt-3">
+  <a href="{% url 'report_update' report.report_id %}" class="btn btn-warning">Edit</a>
+  <form method="post" action="{% url 'report_delete' report.report_id %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger"
+            onclick="return confirm('Delete this report?');">
+      Delete
+    </button>
+  </form>
+  <a href="{% url 'report_list' %}" class="btn btn-secondary">Back to List</a>
+</div>
+{% endblock %}

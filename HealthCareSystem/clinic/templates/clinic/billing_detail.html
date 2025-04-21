@@ -1,0 +1,35 @@
+<!-- clinic/templates/clinic/billing_detail.html -->
+{% extends 'clinic/base.html' %}
+{% block content %}
+<h2 class="mb-4">Billing Details</h2>
+
+<table class="table table-bordered">
+    <tr>
+        <th>Patient</th>
+        <td>{{ bill.patient_name }}</td>
+    </tr>
+    <tr>
+        <th>Insurance</th>
+        <td>{{ bill.insurance_name|default:"Not Covered" }}</td>
+    </tr>
+    <tr>
+        <th>Total Amount</th>
+        <td>₹{{ bill.total_amount }}</td>
+    </tr>
+    <tr>
+        <th>Payment Status</th>
+        <td>{{ bill.payment_status }}</td>
+    </tr>
+    <tr>
+        <th>Billing Date</th>
+        <td>{{ bill.billing_date }}</td>
+    </tr>
+</table>
+
+<a href="{% url 'billing_update' bill.billing_id %}" class="btn btn-warning">Edit</a>
+<form method="POST" action="{% url 'billing_delete' bill.billing_id %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete this bill?');">Delete</button>
+</form>
+<a href="{% url 'billing_list' %}" class="btn btn-secondary">Back to List</a>
+{% endblock %}

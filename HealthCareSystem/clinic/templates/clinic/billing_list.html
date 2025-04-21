@@ -1,39 +1,43 @@
+<!-- clinic/templates/clinic/billing_list.html -->
 {% extends 'clinic/base.html' %}
 {% block content %}
-<h1 class="mb-4">Billing Records</h1>
-<a href="{% url 'billing_create' %}" class="btn btn-success mb-3">New Bill</a>
+<h1 class="mb-4">Billing Management</h1>
+<a class="btn btn-success mb-3" href="{% url 'billing_create' %}">Generate New Bill</a>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Bill ID</th>
-            <th>Patient</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th>Date</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for bill in bills %}
-        <tr>
-            <td>{{ bill.billing_id }}</td>
-            <td>
-                {% with patient=get_record('Patient', 'patient_id', bill.patient_id) %}
-                {{ patient.demographic_details }}
-                {% endwith %}
-            </td>
-            <td>${{ bill.total_amount }}</td>
-            <td>{{ bill.payment_status }}</td>
-            <td>{{ bill.billing_date }}</td>
-            <td>
-                <a href="{% url 'billing_detail' bill.billing_id %}" class="btn btn-info btn-sm">View</a>
-                <a href="{% url 'billing_update' bill.billing_id %}" class="btn btn-warning btn-sm">Edit</a>
-            </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6">No billing records found</td></tr>
-        {% endfor %}
-    </tbody>
+<table class="table table-striped text-center">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Patient</th>
+      <th>Insurance</th>
+      <th>Total Amount</th>
+      <th>Status</th>
+      <th>Date</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for bill in bills %}
+    <tr>
+      <td>{{ bill.billing_id }}</td>
+      <td>{{ bill.patient_name }}</td>
+      <td>{{ bill.insurance_name|default:"No Insurance" }}</td>
+      <td>₹{{ bill.total_amount }}</td>
+      <td>{{ bill.payment_status }}</td>
+      <td>{{ bill.billing_date }}</td>
+      <td>
+        <a class="btn btn-info btn-sm" href="{% url 'billing_detail' bill.billing_id %}">View</a>
+        <a class="btn btn-warning btn-sm" href="{% url 'billing_update' bill.billing_id %}">Edit</a>
+        <form method="POST" action="{% url 'billing_delete' bill.billing_id %}" style="display: inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger btn-sm"
+                  onclick="return confirm('Delete this bill permanently?');">
+            Delete
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>
 {% endblock %}

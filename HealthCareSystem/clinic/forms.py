@@ -3,7 +3,6 @@ from django import forms
 from .models import (
     Patient,
     Appointment,
-    StaffDetails,
     Insurance,
     Billing,
     Prescription,
@@ -14,6 +13,7 @@ from .models import (
 )
 from django.forms import inlineformset_factory
 from django.db.models import Q
+from django.core.exceptions import ValidationError
 
 class PatientForm(forms.ModelForm):
     class Meta:
@@ -108,8 +108,26 @@ class BillingForm(forms.ModelForm):
             'billing_date'
         ]
         widgets = {
-            'billing_date': forms.DateInput(attrs={'type': 'date'}),
+            'patient': forms.Select(attrs={'class': 'form-select'}),
+            'insurance': forms.Select(attrs={'class': 'form-select'}),
+            'total_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'step': '0.01',
+                'placeholder': '0.00'
+            }),
+            'payment_status': forms.Select(attrs={'class': 'form-select'}),
+            'billing_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-control'
+            }),
         }
+
+    def clean_total_amount(self):
+        amt = self.cleaned_data.get('total_amount')
+        if amt is not None and amt < 0:
+            raise ValidationError("Amount cannot be negative.")
+        return amt
 
 
 class PrescriptionForm(forms.ModelForm):

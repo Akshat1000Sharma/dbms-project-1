@@ -1,0 +1,42 @@
+<!-- clinic/templates/clinic/provider_list.html -->
+{% extends 'clinic/base.html' %}
+
+{% block content %}
+<h1>Staff Management</h1>
+<a href="{% url 'provider_create' %}" class="btn btn-success mb-3 px-3">New Staff</a>
+<table class="table table-striped text-center">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Occupation</th>
+            <th>Speciality</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for provider in providers %}
+        <tr>
+            <td>{{ provider.name }}</td>
+            <td>{{ provider.occupation }}</td>
+            <td>{{ provider.speciality }}</td>
+            <td>
+                <a href="{% url 'provider_detail' provider.staff_id %}" class="btn btn-info btn-sm">View</a>
+                <a href="{% url 'provider_update' provider.staff_id %}" class="btn btn-warning btn-sm">Edit</a>
+                <a href="{% url 'provider_contact_manage' provider.staff_id %}" class="btn btn-secondary btn-sm">Contacts</a>
+                <form method="post" action="{% url 'provider_delete' provider.staff_id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm"
+                            onclick="return confirm('Delete this staff member?');">
+                        Delete
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-4">No staff members found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

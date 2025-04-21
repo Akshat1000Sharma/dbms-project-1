@@ -1,0 +1,73 @@
+<!-- clinic/templates/clinic/reporting.html -->
+{% extends 'clinic/base.html' %}
+{% block content %}
+<h1 class="mb-4">Report Management</h1>
+<a class="btn btn-success mb-3" href="{% url 'report_create' %}">Add New Report</a>
+
+<table class="table table-striped text-center">
+  <thead>
+    <tr>
+      <th>Report ID</th>
+      <th>Patient</th>
+      <th>Billing</th>
+      <th>Insurance</th>
+      <th>Created At</th>
+      <th>Updated At</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for report in reports %}
+    <tr>
+      <td>
+        <a href="{% url 'report_detail' report.report_id %}"
+           class="text-decoration-none text-dark">
+          {{ report.report_id }}
+        </a>
+      </td>
+      <td>
+        <a href="{% url 'patient_detail' report.patient_id %}"
+           class="text-decoration-none text-dark">
+          {{ report.patient_id }}
+        </a>
+      </td>
+      <td>
+        <a href="{% url 'billing_detail' report.billing_id %}"
+           class="text-decoration-none text-dark">
+          {{ report.billing_id }}
+        </a>
+      </td>
+      <td>
+        {% if report.insurance_id %}
+          <a href="{% url 'insurance_detail' report.insurance_id %}"
+             class="text-decoration-none text-dark">
+            {{ report.insurance_id }}
+          </a>
+        {% else %}
+          <span class="text-muted">None</span>
+        {% endif %}
+      </td>
+      <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
+      <td>{{ report.updated_at|date:"Y-m-d H:i" }}</td>
+      <td>
+        <a class="btn btn-info btn-sm" href="{% url 'report_detail' report.report_id %}">View</a>
+        <a class="btn btn-warning btn-sm" href="{% url 'report_update' report.report_id %}">Edit</a>
+        <form method="post" action="{% url 'report_delete' report.report_id %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger btn-sm"
+                  onclick="return confirm('Delete this report permanently?');">
+            Delete
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="7" class="text-center text-muted py-4">
+        No reports found.
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

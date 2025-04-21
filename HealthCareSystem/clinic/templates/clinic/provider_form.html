@@ -1,35 +1,48 @@
+<!-- clinic/templates/clinic/provider_form.html -->
 {% extends 'clinic/base.html' %}
-
+{% load widget_tweaks %}
 {% block content %}
-<h1>{% if form.initial.staff_id %}Edit{% else %}New{% endif %} Staff Member</h1>
-<form method="post">
-    {% csrf_token %}
-    
-    <div class="form-group">
-        {{ form.name.label_tag }}
-        {{ form.name }}
-        {% if form.name.errors %}
-            <div class="text-danger">{{ form.name.errors }}</div>
-        {% endif %}
-    </div>
+<div class="container mt-4" style="max-width: 600px;">
+    <div class="card shadow" style="border: 1px solid #007bff;">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">
+                {% if form.initial.staff_id %}Edit{% else %}New{% endif %} Staff Member
+            </h4>
+        </div>
+        <div class="card-body bg-light">
+            <form method="post">
+                {% csrf_token %}
 
-    <div class="form-group">
-        {{ form.occupation.label_tag }}
-        {{ form.occupation }}
-        {% if form.occupation.errors %}
-            <div class="text-danger">{{ form.occupation.errors }}</div>
-        {% endif %}
-    </div>
+                <div class="mb-3">
+                    {{ form.name.label_tag }}
+                    {{ form.name|add_class:"form-control" }}
+                    {% if form.name.errors %}
+                        <div class="text-danger">{{ form.name.errors }}</div>
+                    {% endif %}
+                </div>
 
-    <div class="form-group">
-        {{ form.speciality.label_tag }}
-        {{ form.speciality }}
-        {% if form.speciality.errors %}
-            <div class="text-danger">{{ form.speciality.errors }}</div>
-        {% endif %}
-    </div>
+                <div class="mb-3">
+                    {{ form.occupation.label_tag }}
+                    {{ form.occupation|add_class:"form-control" }}
+                    {% if form.occupation.errors %}
+                        <div class="text-danger">{{ form.occupation.errors }}</div>
+                    {% endif %}
+                </div>
 
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a href="{% url 'provider_list' %}" class="btn btn-secondary">Cancel</a>
-</form>
+                <div class="mb-3">
+                    {{ form.speciality.label_tag }}
+                    {{ form.speciality|add_class:"form-control" }}
+                    {% if form.speciality.errors %}
+                        <div class="text-danger">{{ form.speciality.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <a href="{% url 'provider_list' %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

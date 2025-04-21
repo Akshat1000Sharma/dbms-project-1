@@ -1,0 +1,50 @@
+<!-- clinic/templates/clinic/report_form.html -->
+{% extends 'clinic/base.html' %}
+{% load widget_tweaks %}
+{% block content %}
+
+<div class="container mt-4">
+  <div class="card shadow">
+    <div class="card-header bg-info text-white">
+      <h4 class="mb-0">
+        {{ form.instance.pk|yesno:"Edit Report,Create New Report" }}
+      </h4>
+    </div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="row g-3">
+          
+          <!-- Patient -->
+          <div class="col-md-6">
+            <label class="form-label">Patient</label>
+            {{ form.patient|add_class:"form-select" }}
+            {{ form.patient.errors }}
+          </div>
+          
+          <!-- Billing -->
+          <div class="col-md-6">
+            <label class="form-label">Billing</label>
+            {{ form.billing|add_class:"form-select" }}
+            {{ form.billing.errors }}
+          </div>
+          
+          <!-- Insurance -->
+          <div class="col-md-6">
+            <label class="form-label">Insurance (optional)</label>
+            {{ form.insurance|add_class:"form-select" }}
+            {{ form.insurance.errors }}
+          </div>
+          
+        </div>
+
+        <div class="mt-4 d-flex justify-content-end gap-2">
+          <button type="submit" class="btn btn-primary px-4">Save</button>
+          <a href="{% url 'report_list' %}" class="btn btn-secondary px-4">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
