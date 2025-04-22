@@ -18,6 +18,12 @@ from django.http import JsonResponse, Http404
 from django.forms import inlineformset_factory
 from django.db.models import Q
 
+# appointment imports
+from django.core.mail import send_mail
+from django.conf import settings
+from .db_utils import list_records
+
+
 # user authentication imports
 from django.db import connection, IntegrityError
 from django.contrib.auth import authenticate, login, logout
@@ -280,6 +286,65 @@ def appointment_create(request):
                     current_time
                 ]
             )
+            # -------------------------------- Sending mail
+            # Fetch emails
+            patient_id = request.POST['patient_id']
+            staff_id   = request.POST['staff_id']
+
+            # patient email
+            p_contact = list_records(
+                'Patient_Contact',
+                where="patient_id = %s",
+                params=[patient_id]
+            )
+            patient_email = p_contact[0]['email'] if p_contact else None
+
+            # staff email
+            s_contact = list_records(
+                'Staff_Contact',
+                where="staff_id = %s",
+                params=[staff_id]
+            )
+            staff_email = s_contact[0]['email'] if s_contact else None
+
+            # Build notification
+            subject = f"Appointment Scheduled on {request.POST['appointment_date']}"
+            message = (
+                f"Dear {{name}},\n\n"
+                f"Your appointment has been scheduled as follows:\n"
+                f"  • Date: {request.POST['appointment_date']}\n"
+                f"  • Time: {request.POST['appointment_time']}\n"
+                f"  • Reason: {request.POST.get('reason_for_visit','')}\n\n"
+                "If you need to reschedule, please log in to your account.\n\n"
+                "— Your Clinic Team"
+            )
+
+            # Send to patient
+            if patient_email:
+                send_mail(
+                    subject,
+                    message.format(name='Patient'),
+                    settings.DEFAULT_FROM_EMAIL,
+                    [patient_email],
+                    fail_silently=False
+                )
+
+            staff_name = next(
+                    (s['name'] for s in staff if str(s['staff_id']) == request.POST['staff_id']),
+                    ''
+                )
+            
+            # Send to staff
+            if staff_email:
+                send_mail(
+                    subject,
+                    message.format(name=f"Dr. {staff_name}"),
+                    settings.DEFAULT_FROM_EMAIL,
+                    [staff_email],
+                    fail_silently=False
+                )
+            # -------------------------------- Emails Sents
+
             return redirect('appointment_list')
         except Exception as e:
             error = f"Error creating appointment: {str(e)}"
@@ -298,14 +363,15 @@ def appointment_create(request):
 @permission_required('clinic.change_appointment', raise_exception=True)
 def appointment_update(request, pk):
     appointment = get_record('Appointment', 'appointment_id', pk)
-    patients = list_records('Patient')
-    staff = list_records('Staff_Details', where="occupation = 'doctor'")
+    patients    = list_records('Patient')
+    staff       = list_records('Staff_Details', where="occupation = 'doctor'")
     
     if not appointment:
         return redirect('appointment_list')
     
     if request.method == 'POST':
         try:
+            # 1) Update the record
             update_record(
                 'Appointment',
                 [
@@ -318,31 +384,84 @@ def appointment_update(request, pk):
                     request.POST['staff_id'],
                     request.POST['appointment_date'],
                     request.POST['appointment_time'],
-                    request.POST.get('appointment_status', 'Scheduled'),
-                    request.POST.get('booking_method', 'Online'),
-                    appointment.get('reschedule_count', 0),  # Preserve existing value
-                    appointment.get('reminder_sent', False),  # Preserve existing value
-                    request.POST.get('reason_for_visit', ''),
-                    request.POST.get('notes', ''),
+                    request.POST.get('appointment_status', appointment['appointment_status']),
+                    request.POST.get('booking_method', appointment['booking_method']),
+                    appointment.get('reschedule_count', 0),
+                    appointment.get('reminder_sent', False),
+                    request.POST.get('reason_for_visit', appointment['reason_for_visit']),
+                    request.POST.get('notes', appointment['notes']),
                     timezone.now().strftime('%Y-%m-%d %H:%M:%S')
                 ],
                 'appointment_id', pk
             )
+
+            # 2) Fetch updated emails
+            p_contact = list_records(
+                'Patient_Contact',
+                where="patient_id = %s",
+                params=[request.POST['patient_id']]
+            )
+            s_contact = list_records(
+                'Staff_Contact',
+                where="staff_id = %s",
+                params=[request.POST['staff_id']]
+            )
+            patient_email = p_contact[0]['email'] if p_contact else None
+            staff_email   = s_contact[0]['email']   if s_contact else None
+
+            # 3) Build notification
+            subject = f"Appointment Updated: {request.POST['appointment_date']} at {request.POST['appointment_time']}"
+            message = (
+                "Dear {name},\n\n"
+                "Your appointment has been updated with the following details:\n"
+                f"  • Date: {request.POST['appointment_date']}\n"
+                f"  • Time: {request.POST['appointment_time']}\n"
+                f"  • Status: {request.POST.get('appointment_status')}\n"
+                f"  • Reason: {request.POST.get('reason_for_visit','')}\n\n"
+                "If you have any questions, please contact us.\n\n"
+                "— Your Clinic Team"
+            )
+
+            # 4) Send to patient
+            if patient_email:
+                send_mail(
+                    subject,
+                    message.format(name='Patient'),
+                    settings.DEFAULT_FROM_EMAIL,
+                    [patient_email],
+                    fail_silently=False,
+                )
+
+            # 5) Send to staff
+            if staff_email:
+                # find this staff’s name for personalization
+                staff_name = next(
+                    (s['name'] for s in staff if str(s['staff_id']) == request.POST['staff_id']),
+                    ''
+                )
+                send_mail(
+                    subject,
+                    message.format(name=f"Dr. {staff_name}"),
+                    settings.DEFAULT_FROM_EMAIL,
+                    [staff_email],
+                    fail_silently=False,
+                )
+
             return redirect('appointment_list')
+
         except Exception as e:
             error = f"Error updating appointment: {str(e)}"
     else:
         error = None
     
     return render(request, 'clinic/appointment_form.html', {
-        'appointment': appointment,
-        'patients': patients,
-        'staff_members': staff,
+        'appointment':    appointment,
+        'patients':       patients,
+        'staff_members':  staff,
         'status_choices': [c[0] for c in Appointment.APPOINTMENT_STATUS],
         'method_choices': [c[0] for c in Appointment.BOOKING_METHOD],
-        'error': error
-    })
-# ------------------------------------------------------------------
+        'error':          error
+    })# ------------------------------------------------------------------
 # Healthcare Providers (StaffDetails) CRUD and Assignment
 
 @login_required
