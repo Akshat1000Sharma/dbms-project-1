@@ -81,9 +81,11 @@ urlpatterns = [
     
     
     # EHR
-    path('ehr/', views.EHRView.as_view(), name='ehr'),
-    path('ehr/<int:pk>/', views.ehr_detail, name='ehr_detail'),
+    # path('ehr/', views.EHRView.as_view(), name='ehr'),
+    # path('ehr/<int:pk>/', views.ehr_detail, name='ehr_detail'),
 
+    path('ehr/', views.ehr_management, name='ehr'),
+    path('ehr/download/<int:patient_id>/<str:category>/', views.download_ehr_report, name='download_ehr_report'),
 ]
 handler403 = 'clinic.views.custom_permission_denied'
 handler404 = 'clinic.views.custom_page_not_found'

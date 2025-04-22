@@ -40,6 +40,14 @@ from .db_utils import list_records, get_record, create_record, update_record, ch
 from .forms import PrescriptionForm, DrugForm, PrescriptionDrugFormSet
 from django.contrib import messages
 
+# EHR imports
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseNotFound
+from django.shortcuts import render
+from PyPDF2 import PdfWriter, PdfReader
+from reportlab.pdfgen import canvas
+from io import BytesIO
+import json
+
 def is_doctor(user):
     # Adjust based on your user model's structure
     return user.is_authenticated and user.role == 'Doctor'
@@ -50,20 +58,10 @@ def custom_permission_denied(request, exception=None):
 def custom_page_not_found(request, exception=None):
     return render(request, 'clinic/404.html', status=404)
 
-# 1) Home / Static pages
+# Home Page View
 #
 class HomeView(TemplateView):
     template_name = "clinic/home.html"
-
-class EHRView(TemplateView):
-    template_name = "clinic/ehr.html"
-
-
-class MedicationView(TemplateView):
-    template_name = "clinic/medication.html"
-
-
-
 
 # -----------------------------------------------
 # Patient Management Views
@@ -1318,3 +1316,93 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return redirect('login')
+
+# -------------------------------------------------------------------------
+# EHR Management
+def ehr_management(request):
+    patients = sorted(
+        list_records('Patient'), 
+        key=lambda x: x['patient_id']
+    )
+    return render(request, 'clinic/ehr_management.html', {'patients': patients})
+
+def download_ehr_report(request, patient_id, category):
+    valid_categories = ['appointments', 'drugs', 'staff', 'billing', 'insurance', 'reports']
+    if category not in valid_categories:
+        return HttpResponseBadRequest("Invalid category")
+    
+    patient = get_record('Patient', 'patient_id', patient_id)
+    if not patient:
+        return HttpResponseNotFound("Patient not found")
+    
+    data = []
+    if category == 'appointments':
+        data = list_records('Appointment', where='patient_id = %s', params=[patient_id])
+    elif category == 'drugs':
+        prescriptions = list_records('Prescription', where='patient_id = %s', params=[patient_id])
+        for pres in prescriptions:
+            drugs = list_records('Prescription_Drug', where='prescription_id = %s', params=[pres['prescription_id']])
+            for drug in drugs:
+                drug_info = get_record('Drug', 'drug_id', drug['drug_id'])
+                data.append({
+                    'drug_name': drug_info.get('drug_name', 'N/A'),
+                    'quantity': drug['quantity'],
+                    'instructions': drug['instructions'],
+                    'prescribed_on': pres.get('created_at', '')
+                })
+    elif category == 'staff':
+        assignments = list_records('Patients_Assigned', where='patient_id = %s', params=[patient_id])
+        for assign in assignments:
+            staff = get_record('Staff_Details', 'staff_id', assign['staff_id'])
+            data.append({
+                'staff_name': staff.get('name', 'N/A'),
+                'assigned_date': assign.get('assigned_date', '')
+            })
+    elif category == 'billing':
+        data = list_records('Billing', where='patient_id = %s', params=[patient_id])
+    elif category == 'insurance':
+        insurance_id = patient.get('insurance_id')
+        if insurance_id:
+            data = [get_record('Insurance', 'insurance_id', insurance_id)]
+    elif category == 'reports':
+        data = list_records('Report', where='patient_id = %s', params=[patient_id])
+    
+    # Generate PDF
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer)
+    p.setFont("Helvetica", 12)
+    
+    # PDF Content
+    y = 800
+    p.drawString(50, y, f"Patient: {patient.get('patient_name', '')} (ID: {patient_id})")
+    y -= 20
+    p.drawString(50, y, f"Category: {category.capitalize()}")
+    y -= 30
+    
+    for item in data:
+        for key, value in item.items():
+            p.drawString(50, y, f"{key.replace('_', ' ').title()}: {value}")
+            y -= 15
+        y -= 15  # Space between entries
+        if y < 50:
+            p.showPage()
+            y = 800
+    p.save()
+    
+    # Encrypt PDF
+    buffer.seek(0)
+    pdf_reader = PdfReader(buffer)
+    pdf_writer = PdfWriter()
+    
+    for page in pdf_reader.pages:
+        pdf_writer.add_page(page)
+    
+    pdf_writer.encrypt(user_password="HealthCareSystem")
+    
+    encrypted_buffer = BytesIO()
+    pdf_writer.write(encrypted_buffer)
+    encrypted_buffer.seek(0)
+    
+    response = HttpResponse(encrypted_buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="patient_{patient_id}_{category}.pdf"'
+    return response

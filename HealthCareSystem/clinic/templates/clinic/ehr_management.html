@@ -1,0 +1,53 @@
+{% extends 'clinic/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Electronic Health Records (EHR)</h2>
+    <table class="table table-bordered">
+        <thead class="thead-dark">
+            <tr>
+                <th>Patient ID</th>
+                <th>Patient Name</th>
+                <th>Appointments</th>
+                <th>Drugs Prescribed</th>
+                <th>Staff Assigned</th>
+                <th>Billing</th>
+                <th>Insurance</th>
+                <th>Reports</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for patient in patients %}
+            <tr>
+                <td>{{ patient.patient_id }}</td>
+                <td>{{ patient.patient_name }}</td>
+                <td>
+                    <a href="{% url 'download_ehr_report' patient.patient_id 'appointments' %}" 
+                       class="btn btn-sm btn-outline-primary">Download PDF</a>
+                </td>
+                <td>
+                    <a href="{% url 'download_ehr_report' patient.patient_id 'drugs' %}" 
+                       class="btn btn-sm btn-outline-primary">Download PDF</a>
+                </td>
+                <td>
+                    <a href="{% url 'download_ehr_report' patient.patient_id 'staff' %}" 
+                       class="btn btn-sm btn-outline-primary">Download PDF</a>
+                </td>
+                <td>
+                    <a href="{% url 'download_ehr_report' patient.patient_id 'billing' %}" 
+                       class="btn btn-sm btn-outline-primary">Download PDF</a>
+                </td>
+                <td>
+                    <a href="{% url 'download_ehr_report' patient.patient_id 'insurance' %}" 
+                       class="btn btn-sm btn-outline-primary">Download PDF</a>
+                </td>
+                <td>
+                    <a href="{% url 'download_ehr_report' patient.patient_id 'reports' %}" 
+                       class="btn btn-sm btn-outline-primary">Download PDF</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
